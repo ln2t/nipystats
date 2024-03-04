@@ -1,3 +1,6 @@
+from .shell_tools import *
+
+
 def bids_init(rawdata, output, fmriprep):
     from pathlib import Path
     from bids import BIDSLayout
@@ -453,43 +456,42 @@ def concat_ParticipantAnalyses(pa1, pa2):
 
     return pa12
 
+def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
 
-# ### Function: run_analysis_from_config
-
-# In[ ]:
-
-
-def run_analysis_from_config(rawdata, output_dir, fmriprep, config):
-    import gc
     _model = config['model']
     _trials_type = config['trials_type']
     _contrasts = config['contrasts']
-    _subjects = config['subjects']
     _tasks = config['tasks']
     _first_level_options = config['first_level_options']
     _concat_pairs = config['concatenation_pairs']
 
-    layout, subjects, tasks = bids_init(rawdata, output_dir, fmriprep)
+    layout, all_subjects, all_tasks = bids_init(rawdata, output_dir, fmriprep)
+
+    if subjects:
+        _subjects = subjects
+    else:
+        _subjects = all_subjects
 
     save_config(config, output_dir, _model)
 
-    if _subjects is None or _subjects == 'All':
-        _subjects = subjects
-
     if _tasks is None or _tasks == 'All':
-        _tasks = tasks
+        _tasks = all_tasks
 
     for s in _subjects:
+        msg_info("Running for participant %s" % s)
         pa = {}
         for t in _tasks:
             print('Processing %s, %s' % (s, t))
             print_memory_usage()
             pa[t] = ParticipantAnalysis()
-            pa[t].full_pipeline(dataset_path=rawdata, task_label=t,
-                             subject=s, derivatives_folder=fmriprep,
-                             trials_type=_trials_type, confound_strategy='motion',
-                            contrasts=_contrasts, first_level_options=_first_level_options);
-            pa[t].bids_export(output_dir, _model)
+            try:
+                pa[t].full_pipeline(dataset_path=rawdata, task_label=t,
+                                 subject=s, derivatives_folder=fmriprep,
+                                 trials_type=_trials_type, confound_strategy='motion',
+                                contrasts=_contrasts, first_level_options=_first_level_options);
+                pa[t].bids_export(output_dir, _model)
+            except:
+                msg_error('There was an issue with %s, %t' % (s, t))
 
         if not _concat_pairs is None:
             print('Warning: using experimental concatenation tool.')

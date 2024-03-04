@@ -12,6 +12,7 @@ Created: Feb 2024
 """
 
 from .tools import *
+import sys
 
 def main():
     """
@@ -42,23 +43,16 @@ def main():
     # msg_info("Task to analyse: %s" % task)
     # msg_info("Selected space: %s" % space)
 
+    if not config['concatenation_pairs'] is None and not args.task is None:
+        msg_error('Task argument cannot be used if concatenation pairs are defined in configuration file.')
+        sys.exit(1)
+
+    if args.task:
+        config['tasks'] = args.task
+
     if args.analysis_level == "participant":
 
-        for subject_label in args.participant_label:
-            msg_info("Running for participant %s" % subject_label)
-
-            if args.task:
-                tasks = args.task
-            else:
-                tasks = config['tasks']
-
-            for task_label in tasks:
-                config['subjects'] = [subject_label]
-                config['tasks'] = [task_label]
-                try:
-                    run_analysis_from_config(args.bids_dir, args.output_dir, fmriprep_dir, config)
-                except:
-                    msg_error('There is an issue with subject %s, task %s' % (subject_label, task_label))
+        run_analysis_from_config(args.bids_dir, args.output_dir, args.participant_label, fmriprep_dir, config)
 
     # running group level
     elif args.analysis_level == "group":

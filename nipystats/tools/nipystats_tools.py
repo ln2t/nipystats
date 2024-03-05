@@ -296,7 +296,7 @@ class ParticipantAnalysis:
             ds_desc.write('{"Name": \"%s\", "BIDSVersion": "v1.8.0", "DatasetType": "derivative", "GeneratedBy": [{"Name": \"%s\"}, {"Version": "dev"}]}' % ('nipystats', 'nipystats'))
             ds_desc.close()
 
-        if not 'nipystats' in self.layout.derivatives.keys():
+        if any(['nipystats' in k for k in self.layout.derivatives.keys()]):
             self.layout.add_derivatives(output_dir)
 
         output_layout = self.layout.derivatives['nipystats']
@@ -504,7 +504,7 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
                 pa2 = pa[t2]
 
                 pa12 = concat_ParticipantAnalyses(pa1, pa2)
-                pa12.fit();
+                pa12.fit()
 
                 for c in _contrasts:
                     pa12.contrasts = [c + '_' + t1 + '+' + c + '_' + t2, t1 + '-' + t2, t1 + '+' + t2]

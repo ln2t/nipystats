@@ -296,7 +296,7 @@ class ParticipantAnalysis:
             ds_desc.write('{"Name": \"%s\", "BIDSVersion": "v1.8.0", "DatasetType": "derivative", "GeneratedBy": [{"Name": \"%s\"}, {"Version": "dev"}]}' % ('nipystats', 'nipystats'))
             ds_desc.close()
 
-        if any(['nipystats' in k for k in self.layout.derivatives.keys()]):
+        if not any(['nipystats' in k for k in self.layout.derivatives.keys()]):
             self.layout.add_derivatives(output_dir)
 
         output_layout = self.layout.derivatives['nipystats']
@@ -491,7 +491,7 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
                                 contrasts=_contrasts, first_level_options=_first_level_options);
                 pa[t].bids_export(output_dir, _model)
             except:
-                msg_error('There was an issue with %s, %t' % (s, t))
+                msg_error('There was an issue with %s, %s' % (s, t))
 
         if not _concat_pairs is None:
             print('Warning: using experimental concatenation tool.')

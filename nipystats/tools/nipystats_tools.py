@@ -1,6 +1,37 @@
 from .shell_tools import *
 
 
+def harmonize_grid(img_list, ref_img):
+    """
+        Resample all imgs in img_list to ref_img. Return the list of resampled images.
+
+    """
+
+    from nilearn.image import resample_to_img
+
+    output = []
+    for img in img_list:
+        output.append(resample_to_img(img, ref_img, interpolation='nearest'))
+    return output
+
+
+def round_affine(img_list, n=2):
+    """
+        Round affines of each niimg in img_list. Do not chage in place, but returns the imgs with round affines.
+
+    """
+
+    from nilearn.image import load_img
+    from nibabel import Nifti1Image
+    import numpy as np
+    output = []
+    for m in img_list:
+        img = load_img(m)
+        _img = Nifti1Image(img.get_fdata(), affine=np.round(img.affine, n), header=img.header)
+        output.append(_img)
+
+    return output
+
 def bids_init(rawdata, output, fmriprep):
     from pathlib import Path
     from bids import BIDSLayout
@@ -416,7 +447,9 @@ def concat_ParticipantAnalyses(pa1, pa2):
     mask1 = pa1.bold_mask
     mask2 = pa2.bold_mask
 
-    mask12 = intersect_masks([mask1, mask2])
+    rounded_ = round_affine([mask1, mask2])
+    _list = harmonize_grid(rounded_, rounded_[0])
+    mask12 = intersect_masks(_list)
 
     pa12.bold_mask = mask12
 

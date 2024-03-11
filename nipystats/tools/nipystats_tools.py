@@ -56,7 +56,7 @@ def bids_init(rawdata, output, fmriprep):
     tasks = layout.get_tasks()
     return layout, subjects, tasks
 
-def camel_case(s, lower=True):
+def camel_case(s, lower=False):
     """
         Converts string to camel case. If lower=True, use the lower camel case convention (first char is lower case).
         If lower=False, use Upper camel case (aka PascalCase).

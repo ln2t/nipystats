@@ -111,9 +111,9 @@ def print_memory_usage():
     # Importing the library
     import psutil
     # Getting % usage of virtual_memory ( 3rd field)
-    msg_info('RAM memory % used:', psutil.virtual_memory()[2])
+    print('RAM memory % used:', psutil.virtual_memory()[2])
     # Getting usage of virtual_memory in GB ( 4th field)
-    msg_info('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
+    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
 
 # In[ ]:
@@ -836,7 +836,7 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
         pa = {}
         for t in _tasks:
             msg_info('Processing %s, %s' % (s, t))
-            print_memory_usage()
+            # print_memory_usage()
             pa[t] = ParticipantAnalysis()
 
             try:
@@ -853,7 +853,7 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
             for (t1, t2) in _concat_pairs:
 
                 msg_info('Starting concatenation %s: %s + %s' % (s, t1, t2))
-                print_memory_usage()
+                # print_memory_usage()
 
                 pa1 = pa[t1]
                 pa2 = pa[t2]

@@ -70,7 +70,7 @@ def get_fmriprep_dir(args):
 
     return fmriprep_dir
 
-def read_config_file(file=None):
+def read_config_file(file, level):
     """
         Read config file
 
@@ -81,14 +81,14 @@ def read_config_file(file=None):
     """
     config = {}
 
-    if file:
-        import json
-        from .shell_tools import msg_info
+    import json
+    from .shell_tools import msg_info
 
-        msg_info('Reading parameters from user-provided configuration file %s' % file)
+    msg_info('Reading parameters from user-provided configuration file %s' % file)
+    with open(file, 'r') as f:
+        config_json = json.load(f)
 
-        with open(file, 'r') as f:
-            config_json = json.load(f)
+    if level == 'participant':
 
         keys = ['model', 'trials_type', 'contrasts',
                 'tasks', 'first_level_options', 'concatenation_pairs']
@@ -98,4 +98,18 @@ def read_config_file(file=None):
                 config[key] = config_json[key]
 
         config['first_level_options']['signal_scaling'] = tuple(config['first_level_options']['signal_scaling'])
+
+    if level == 'group':
+
+        keys = ['model', 'first_level_model', 'first_level_contrast',
+                'concat_tasks', 'tasks', 'covariates', 'contrasts',
+                'add_constant', 'smoothing_fwhm', 'report_options', 'paired', 'task_weights']
+
+        for key in keys:
+            if key in config_json.keys():
+                config[key] = config_json[key]
+
+        if config['report_options'] is None:
+            config['report_options'] = dict()
+
     return config

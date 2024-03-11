@@ -56,24 +56,32 @@ def bids_init(rawdata, output, fmriprep):
     tasks = layout.get_tasks()
     return layout, subjects, tasks
 
+def camel_case(s, lower=True):
+    """
+        Converts string to camel case. If lower=True, use the lower camel case convention (first char is lower case).
+        If lower=False, use Upper camel case (aka PascalCase).
 
-# In[ ]:
+    Args:
+        s: string
+        lower: bool, optional (default: False)
 
+    Returns:
+        camel case version of string
 
-from re import sub
-
-# Define a function to convert a string to camel case
-def camel_case(s):
+    """
     # Use regular expression substitution to replace underscores and hyphens with spaces,
     # then title case the string (capitalize the first letter of each word), and remove spaces
+    from re import sub
+
     s = sub(r"(_|-)+", " ", s).title().replace(" ", "")
 
-    # Join the string, ensuring the first letter is lowercase
-    return ''.join([s[0].lower(), s[1:]])
+    if lower:
+        # Join the string, ensuring the first letter is lowercase
+        out_s = ''.join([s[0].lower(), s[1:]])
+    else:
+        out_s = s
 
-
-# In[ ]:
-
+    return out_s
 
 def concat_fmri(imgs):
     from nilearn import image
@@ -103,9 +111,9 @@ def print_memory_usage():
     # Importing the library
     import psutil
     # Getting % usage of virtual_memory ( 3rd field)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
+    msg_info('RAM memory % used:', psutil.virtual_memory()[2])
     # Getting usage of virtual_memory in GB ( 4th field)
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
+    msg_info('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
 
 # In[ ]:
@@ -115,18 +123,11 @@ def save_config(config, output_dir, label):
     import json
     from os.path import join
     from pathlib import Path
+    label = camel_case(label)
     _output = join(output_dir, 'model-' + label)
     Path(_output).mkdir(exist_ok=True, parents=True)
     with open(join(_output, 'model-' + label + '_config.json'), 'w') as fp:
         json.dump(config, fp, indent=True)
-
-
-# ### Class: ParticipantAnalysis
-
-# In[ ]:
-
-
-from nilearn.glm.first_level import first_level_from_bids
 
 class ParticipantAnalysis:
     """
@@ -157,6 +158,8 @@ class ParticipantAnalysis:
             Wrapper for nilearn's first_level_from_bids function.
 
         """
+        from nilearn.glm.first_level import first_level_from_bids
+
         if dataset_path is None:
             dataset_path = self.dataset_path
         else:
@@ -224,7 +227,7 @@ class ParticipantAnalysis:
             motion_confounds = ['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']
             self.confounds = self.all_confounds[motion_confounds]
         else:
-            print('Only motion is allowed for confound_strategy')
+            msg_info('Only motion is allowed for confound_strategy')
         self.confound_strategy = confound_strategy
 
     def fit(self):
@@ -256,9 +259,11 @@ class ParticipantAnalysis:
         else:
             self.contrasts = contrasts
 
-        self.contrast_maps = {}
-        for c in contrasts:
-            self.contrast_maps[c] = self.model.compute_contrast(c, output_type = 'all')
+        if not self.contrasts is None:
+
+            self.contrast_maps = {}
+            for c in contrasts:
+                self.contrast_maps[c] = self.model.compute_contrast(c, output_type = 'all')
 
 
     def plot_stat(self, contrast=None, threshold=5):
@@ -275,18 +280,23 @@ class ParticipantAnalysis:
             contrasts = self.contrasts
         else:
             contrasts = [contrast]
-        for c in contrasts:
-            map = self.contrast_maps[c]['stat']
-            plot_stat_map(map, threshold=threshold, title="%s, %s, %s (statistic)" % (c, sub, task))
+
+        if not self.contrasts is None:
+            for c in contrasts:
+                map = self.contrast_maps[c]['stat']
+                plot_stat_map(map, threshold=threshold, title="%s, %s, %s (statistic)" % (c, sub, task))
 
     def generate_report(self, **report_options):
         """
             Wrapper for FirstLevelModel.generate_report()
 
         """
-        self.report = self.model.generate_report(self.contrasts, **report_options)
-        self.report_options = report_options
 
+        if not self.contrasts is None:
+            self.report = self.model.generate_report(self.contrasts, **report_options)
+            self.report_options = report_options
+        else:
+            msg_info('No contrast specified, thus no report to generate.')
 
     def full_pipeline(self, dataset_path=None, subject=None, task_label=None, trials_type=None, contrasts=None, confound_strategy=None,
                  derivatives_folder=None, first_level_options=None, **report_options):
@@ -332,24 +342,29 @@ class ParticipantAnalysis:
 
         output_layout = self.layout.derivatives['nipystats']
 
-        maps = self.contrast_maps
+        if not self.contrasts is None:
 
-        self.maps_path = {}
+            maps = self.contrast_maps
 
-        for c in self.contrasts:
-            Path(join(output_layout.root, 'model-' + camel_case(model), 'desc-' + camel_case(c), 'sub-' + sub)).mkdir(parents=True, exist_ok=True)
-            self.maps_path[c] = {}
-            for k in maps[c].keys():
-                entities = {'subject': sub, 'task': task, 'model': camel_case(model),
-                            'desc': camel_case(c), 'suffix': camel_case(k)}
-                map_fn = output_layout.build_path(entities, patterns['map'], validate=False)
-                maps[c][k].to_filename(map_fn)
-                self.maps_path[c][k] = map_fn
+            self.maps_path = {}
 
-        entities = {'subject': sub, 'task': task, 'model': camel_case(model), 'suffix': 'report'}
-        rep_fn = output_layout.build_path(entities, patterns['report'], validate=False)
-        self.report.save_as_html(rep_fn)
-        self.report_path = rep_fn
+            for c in self.contrasts:
+                Path(join(output_layout.root, 'model-' + camel_case(model), 'desc-' + camel_case(c), 'sub-' + sub)).mkdir(parents=True, exist_ok=True)
+                self.maps_path[c] = {}
+                for k in maps[c].keys():
+                    entities = {'subject': sub, 'task': task, 'model': camel_case(model),
+                                'desc': camel_case(c), 'suffix': camel_case(k)}
+                    map_fn = output_layout.build_path(entities, patterns['map'], validate=False)
+                    maps[c][k].to_filename(map_fn)
+                    self.maps_path[c][k] = map_fn
+
+            entities = {'subject': sub, 'task': task, 'model': camel_case(model), 'suffix': 'report'}
+            rep_fn = output_layout.build_path(entities, patterns['report'], validate=False)
+            self.report.save_as_html(rep_fn)
+            self.report_path = rep_fn
+
+        else:
+            msg_info('No contrast specified, nothing to save.')
 
     def load_layout(self):
         """
@@ -367,7 +382,6 @@ class ParticipantAnalysis:
         """
         subject = self.subject
         task = self.task_label
-        layout = self.layout
         if self.layout is None:
             self.load_layout()
         self.bold_mask = self.layout.derivatives['fMRIPrep'].get(return_type = 'filename', subject=subject, task=task,
@@ -411,9 +425,319 @@ class ParticipantAnalysis:
         pass
 
 
-# ### Function: concat_ParticipantAnalyses
+def get_group_confounds(layout, covariates=None):
+    """
+        Build confounds dataframe from BIDS participants.tsv file.
+        Change name for nilearn compatibility and build numerical group confound.
+        If 'group' is not in the coraviates, creates a 'constant' covariate
+        (otherwise the constant term is a linear combination of the group covariates).
 
-# In[ ]:
+    """
+    import pandas as pd
+    rawdata_fn = layout.get(return_type='filename', extension='.tsv', scope='raw', subject=None, suffix='participants')[
+        0]
+    rawdata_df = pd.read_csv(rawdata_fn, sep='\t')
+
+    if covariates is None:
+        covariates = []
+
+    confounds = rawdata_df[['participant_id', *covariates]]
+    confounds = confounds.rename(columns={'participant_id': 'subject_label'}).copy()
+
+    if "group" in covariates:
+        group_labels = set(confounds['group'].values)
+        for _group in group_labels:
+            confounds[_group] = 0
+            confounds.loc[confounds['group'] == _group, _group] = 1
+        confounds.drop(columns=['group'], inplace=True)
+
+    return confounds
+
+def get_group_members_lists(layout, design_matrix_and_info):
+    """
+        Return a dict with keys = group_label and values = list of subject_label belonging to the group.
+        Keeps only those subjects also present in design_matrix_and_info['subject_label'].
+
+    """
+    confounds = get_group_confounds(layout, covariates=['group'])
+
+    group_members = dict()
+    for col in confounds.columns:
+        if not col == 'subject_label':
+            group_members[col] = []
+            for s in confounds.loc[confounds[col] == 1, 'subject_label'].values:
+                if s in design_matrix_and_info['subject_label'].values:
+                    group_members[col].append(camel_case(s))
+
+    return group_members
+
+
+def get_participantlevel_info(output_layout, task, model, contrast):
+    """
+        Make a dataframe with participant-level informations
+
+    """
+    import pandas as pd
+    df = pd.DataFrame()
+    df['subject_label'] = []
+    df['map_name'] = []
+    df['effects_map_path'] = []
+
+    for s in output_layout.get_subjects(**{'model': model, 'desc': contrast, 'task': task}):
+        fn = output_layout.get(model=model, desc=contrast,
+                               return_type='filename', extension='.nii.gz',
+                               task=task, suffix='effectSize', subject=s)[0]
+        df.loc[len(df.index)] = ['sub-' + s, contrast, fn]
+
+    return df
+
+def get_mask_intersect(layout, tasks):
+    """
+        Get all masks from layout.derivatives['fMRIPrep'] corresponding to task and computes intersection, taking care of affine and grid inconsistencies.
+
+    """
+    from nilearn.masking import intersect_masks
+    masks = layout.derivatives['fMRIPrep'].get(desc='brain', return_type='filename', extension='.nii.gz', task=tasks,
+                                               suffix='mask')
+    ref_mask = masks[0]
+    mask_imgs = round_affine(masks)
+    mask_imgs = harmonize_grid(mask_imgs, ref_mask)
+    return intersect_masks(mask_imgs), ref_mask
+
+class GroupAnalysis:
+    def __init__(self, layout=None, tasks=None, concat_tasks=None, first_level_df=None,
+                 first_level_model=None, first_level_contrast=None,
+                 confounds=None, contrasts=None, bold_mask=None, model=None, ref_mask=None,
+                 design_matrix=None, contrast_maps=None,
+                 output_dir=None, covariates=None, glm=None,
+                 add_constant=False, paired=False, task_weights=None, smoothing_fwhm=8, report_options=None,
+                 contrasts_dict=None):
+        self.layout = layout
+        self.first_level_df = first_level_df
+        self.first_level_model = camel_case(first_level_model)
+        self.first_level_contrast = camel_case(first_level_contrast)
+        self.contrasts = contrasts
+        self.confounds = confounds
+        self.bold_mask = bold_mask
+        self.model = model
+        self.ref_mask = ref_mask
+        self.design_matrix = design_matrix
+        self.contrast_maps = contrast_maps
+        self.output_dir = output_dir
+        self.covariates = covariates
+        self.glm = glm
+        self.tasks = tasks
+        self.task = None
+        self.concat_tasks = concat_tasks
+        self.smoothing_fwhm = smoothing_fwhm
+        self.report_options = report_options
+        self.contrasts_dict = contrasts_dict
+
+        if concat_tasks is None:
+
+            self.n_tasks = len(tasks)
+
+            if self.n_tasks == 1:
+                self.task = tasks[0]
+        else:
+            self.n_tasks = 1
+            self.task = concat_tasks
+
+        self.add_constant = add_constant
+
+        self.paired = paired
+        if paired and task_weights is None:
+            msg_info('Error: must provide task_weights for paired design')
+        self.task_weights = task_weights
+
+    def setup(self):
+
+        from nilearn.glm.second_level import SecondLevelModel
+        from nilearn.image import load_img
+
+        msg_info('Setup in progress...')
+        # get first-level data paths for selected contrast
+        self.output_layout = self.layout.derivatives['nipystats']
+        msg_info("Number of subjects found in the ouputs: %s" % str(len(self.output_layout.get_subjects())))
+        self.bold_mask, self.ref_mask = get_mask_intersect(self.layout, self.tasks)
+        self.glm = SecondLevelModel(mask_img=self.bold_mask, smoothing_fwhm=self.smoothing_fwhm,
+                                    target_affine=load_img(self.ref_mask).affine)
+
+    def make_design_matrix(self):
+
+        msg_info('Making design matrix...')
+
+        import pandas as pd
+
+        dm = pd.DataFrame()
+        tasks = self.tasks
+
+        if self.n_tasks == 1:
+            dm1 = get_participantlevel_info(self.output_layout, self.task, self.first_level_model,
+                                            self.first_level_contrast).sort_values('subject_label')
+            dm2 = get_group_confounds(layout=self.layout, covariates=self.covariates).sort_values('subject_label')
+            dm2_filtered = dm2.loc[dm2['subject_label'].isin(dm1['subject_label'])].reset_index().drop(
+                columns=['index'])
+            dm = pd.concat([dm1, dm2_filtered.drop(columns=['subject_label'])], axis=1)
+            dm.drop(columns=['map_name'], inplace=True)
+        else:
+            for t in self.tasks:
+                dm1 = get_participantlevel_info(self.output_layout, t, self.first_level_model,
+                                                self.first_level_contrast).sort_values('subject_label')
+                dm2 = get_group_confounds(layout=self.layout, covariates=self.covariates).sort_values('subject_label')
+                dm2_filtered = dm2.loc[dm2['subject_label'].isin(dm1['subject_label'])].reset_index().drop(
+                    columns=['index'])
+                dm12 = pd.concat([dm1, dm2_filtered.drop(columns=['subject_label'])], axis=1)
+                dm12['task'] = t
+                dm12['subject_task_label'] = dm12['subject_label'].apply(camel_case) + '_task-' + t
+                dm = pd.concat([dm, dm12])
+            dm.rename(columns={0: 'subject_label'}, inplace=True)
+
+            if self.paired:
+
+                for t in tasks:
+                    if not t in self.task_weights.keys():
+                        msg_info('Error, task %s not in the task weights.' % t)
+
+                subjects = set(dm['subject_label'].values)
+
+                for s in subjects:
+                    s = camel_case(s)
+                    dm[s] = 0
+                    for t in self.task_weights.keys():
+                        dm.loc[dm['subject_task_label'] == s + '_task-' + t, s] = self.task_weights[t]
+
+            else:
+                for t in tasks:
+                    dm[t] = 0
+                    dm.loc[dm['task'] == t, t] = 1
+
+            dm.drop(columns=['map_name', 'task', 'subject_task_label'], inplace=True)
+
+        if self.add_constant:
+            dm['constant'] = 1
+
+        self.design_matrix = dm.drop(columns=['subject_label', 'effects_map_path'])
+        self.design_matrix_and_info = dm  # remaining non-numerical cols: ['subject_label', 'effects_map_path']
+
+    def plot_design_matrix(self):
+        from nilearn.plotting import plot_design_matrix
+        plot_design_matrix(self.design_matrix)
+
+    def fit(self):
+
+        msg_info('Fitting model to data...')
+        rounded_ = round_affine(self.design_matrix_and_info['effects_map_path'].values)
+        _list = harmonize_grid(rounded_, rounded_[0])
+        self.glm.fit(_list, design_matrix=self.design_matrix)
+
+    def compute_contrasts(self):
+
+        msg_info('Computing contrasts...')
+
+        contrasts_dict = {}
+
+        if self.paired:
+
+            group_members = get_group_members_lists(self.layout, self.design_matrix_and_info)
+
+            msg_info('Contrasts automatically generated for paired analysis.')
+
+            for c in self.contrasts:
+                contrasts_dict[c] = []
+                if "+" in c:
+                    c_split = c.split("+")
+                    if len(c_split) == 2:
+                        _str = "+".join(group_members[c_split[0]]) + "+" + "+".join(group_members[c_split[1]])
+                        contrasts_dict[c] = _str
+                    else:
+                        msg_info(
+                            'Error in contrast definition, %s in not a valid value. More complicated contrasts not supported (yet...?)' % c)
+                else:
+                    if "-" in c:
+                        c_split = c.split("-")
+                        if len(c_split) == 2:
+                            _str = "+".join(group_members[c_split[0]]) + "-" + "-".join(group_members[c_split[1]])
+                            contrasts_dict[c] = _str
+                        else:
+                            msg_info(
+                                'Error in contrast definition, %s in not a valid value. More complicated contrasts not supported (yet...?)' % c)
+                    else:
+                        _str = "+".join(group_members[c])
+                        contrasts_dict[c] = _str
+            self.contrasts = list(contrasts_dict.values())  # we need this for the report generation
+        else:
+            for c in self.contrasts:
+                contrasts_dict[c] = c
+
+        self.contrast_maps = {}
+        for k in contrasts_dict.keys():
+            self.contrast_maps[k] = self.glm.compute_contrast(second_level_contrast=contrasts_dict[k],
+                                                              first_level_contrast=self.first_level_contrast,
+                                                              output_type='all')
+
+        self.contrasts_dict = contrasts_dict
+
+    def generate_report(self, **report_options):
+
+        msg_info('Generating report...')
+
+        self.report = self.glm.generate_report(contrasts=self.contrasts, **report_options)
+        self.report_options = report_options
+
+    def export_to_bids(self):
+
+        msg_info('Exporting to BIDS...')
+
+        from os.path import join
+        from pathlib import Path
+
+        pattern = "model-{model}/desc-{desc}/group/group[_task-{task}]_model-{model}[_desc-{desc}][_secondLevelModel-{secondLevelModel}][_secondLevelContrast-{secondLevelContrast}]_{suffix}{extension}"
+
+        maps = self.contrast_maps
+
+        self.maps_path = {}
+
+        model = self.model
+        first_level_model = self.first_level_model
+        first_level_contrast = self.first_level_contrast
+        task = self.task
+
+        output_layout = self.layout.derivatives['nipystats']
+        output_dir = join(output_layout.root, 'model-' + camel_case(first_level_model), 'desc-' + first_level_contrast,
+                          'group')
+        self.output_dir = output_dir
+
+        Path(output_dir).mkdir(exist_ok=True, parents=True)
+        msg_info('Output directory is %s' % output_dir)
+
+        for k in self.contrasts_dict.keys():
+            self.maps_path[k] = {}
+            for kk in maps[k].keys():
+                entities = {'task': task, 'suffix': camel_case(kk),
+                            'desc': first_level_contrast, 'model': camel_case(first_level_model),
+                            'extension': '.nii.gz',
+                            'secondLevelModel': camel_case(self.model),
+                            'secondLevelContrast': camel_case(k)}
+                map_fn = output_layout.build_path(entities, pattern, validate=False)
+                maps[k][kk].to_filename(map_fn)
+                self.maps_path[k][kk] = map_fn
+
+        entities = {'task': task, 'suffix': 'report', 'desc': first_level_contrast,
+                    'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
+                    'extension': '.html'}
+        rep_fn = output_layout.build_path(entities, pattern, validate=False)
+        msg_info('Saving report to %s' % rep_fn)
+        self.report.save_as_html(rep_fn)
+        self.report_path = rep_fn
+
+    def plot_stat_map(self, threshold=5):
+        from nilearn.plotting import plot_stat_map
+        contrasts_dict = self.contrasts_dict
+        for k in contrasts_dict.keys():
+            plot_stat_map(self.contrast_maps[k]['stat'], title='Group contrast %s, model %s, individual contrast %s' %
+                                                               (k, self.first_level_model,
+                                                                self.first_level_contrast), threshold=threshold)
 
 
 def concat_ParticipantAnalyses(pa1, pa2):
@@ -475,9 +799,6 @@ def concat_ParticipantAnalyses(pa1, pa2):
             _ll.append(_n  + '_' + task2)
     dm2.columns.values[:] = _ll
 
-    # dm1.columns.values[dm1.columns.values == 'constant'] = [task1]
-    # dm2.columns.values[dm2.columns.values == 'constant'] = [task2]
-
     dm12 = make_block_design_matrix(dm1, dm2)
 
     pa12.design_matrix = dm12
@@ -514,9 +835,10 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
         msg_info("Running for participant %s" % s)
         pa = {}
         for t in _tasks:
-            print('Processing %s, %s' % (s, t))
+            msg_info('Processing %s, %s' % (s, t))
             print_memory_usage()
             pa[t] = ParticipantAnalysis()
+
             try:
                 pa[t].full_pipeline(dataset_path=rawdata, task_label=t,
                                  subject=s, derivatives_folder=fmriprep,
@@ -527,10 +849,10 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
                 msg_error('There was an issue with %s, %s' % (s, t))
 
         if not _concat_pairs is None:
-            print('Warning: using experimental concatenation tool.')
+            msg_warning('using experimental concatenation tool.')
             for (t1, t2) in _concat_pairs:
 
-                print('Starting concatenation %s: %s + %s' % (s, t1, t2))
+                msg_info('Starting concatenation %s: %s + %s' % (s, t1, t2))
                 print_memory_usage()
 
                 pa1 = pa[t1]
@@ -539,11 +861,17 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
                 pa12 = concat_ParticipantAnalyses(pa1, pa2)
                 pa12.fit()
 
-                for c in _contrasts:
-                    pa12.contrasts = [c + '_' + t1 + '+' + c + '_' + t2, t1 + '-' + t2, t1 + '+' + t2]
+                if _contrasts is None:
+                    pa12.contrasts = [t1 + '+' + t2, t1 + '-' + t2]
                     pa12.compute_contrasts()
                     pa12.generate_report()
                     pa12.bids_export(output_dir, _model)
+                else:
+                    for c in _contrasts:
+                        pa12.contrasts = [c + '_' + t1 + '+' + c + '_' + t2, t1 + '-' + t2, t1 + '+' + t2]
+                        pa12.compute_contrasts()
+                        pa12.generate_report()
+                        pa12.bids_export(output_dir, _model)
 
                 # pa[t1 + t2] = pa12
                 del pa1, pa2, pa12
@@ -552,3 +880,34 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
 
 
 
+def run_group_analysis_from_config(rawdata, output_dir, fmriprep, config):
+
+    model = config['model']
+    first_level_model = config['first_level_model']
+    first_level_contrast = config['first_level_contrast']
+    concat_tasks = config['concat_tasks']
+    tasks = config['tasks']
+    covariates = config['covariates']
+    contrasts = config['contrasts']
+    add_constant = config['add_constant']
+    smoothing_fwhm = config['smoothing_fwhm']
+    report_options = config['report_options']
+    paired = config['paired']
+    task_weights = config['task_weights']
+
+    layout, _, _ = bids_init(rawdata, output_dir, fmriprep)
+
+    # save_config(config, output_dir, model)
+
+    ga = GroupAnalysis(layout=layout, tasks=tasks, first_level_model=first_level_model,
+                       first_level_contrast=first_level_contrast, model=model, covariates=covariates,
+                       contrasts=contrasts, add_constant=add_constant, smoothing_fwhm=smoothing_fwhm,
+                       paired=paired, concat_tasks=concat_tasks, task_weights=task_weights)
+    ga.setup()
+    ga.make_design_matrix()
+    ga.plot_design_matrix()
+    ga.fit()
+    ga.compute_contrasts()
+    ga.plot_stat_map(threshold=3)
+    ga.generate_report(**report_options)
+    ga.export_to_bids()

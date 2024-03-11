@@ -34,29 +34,31 @@ def main():
     # space, res = get_space(args, layout)
     # layout = setup_output_dir(args, __version__, layout)
     # output_dir = layout.derivatives['cvrmap'].root
-    config = read_config_file(args.config)
-
-    # print some summary before running
+        # print some summary before running
     # msg_info("Bids directory: %s" % layout.root)
     # msg_info("Fmriprep directory: %s" % fmriprep_dir)
     # msg_info("Subject(s) to analyse: %s" % subjects_to_analyze)
     # msg_info("Task to analyse: %s" % task)
     # msg_info("Selected space: %s" % space)
 
-    if not config['concatenation_pairs'] is None and not args.task is None:
-        msg_error('Task argument cannot be used if concatenation pairs are defined in configuration file.')
-        sys.exit(1)
-
-    if args.task:
-        config['tasks'] = args.task
-
     if args.analysis_level == "participant":
+
+        config = read_config_file(args.config, level='participant')
+        if not config['concatenation_pairs'] is None and not args.task is None:
+            msg_error('Task argument cannot be used if concatenation pairs are defined in configuration file.')
+            sys.exit(1)
+
+        if args.task:
+            config['tasks'] = args.task
 
         run_analysis_from_config(args.bids_dir, args.output_dir, args.participant_label, fmriprep_dir, config)
 
     # running group level
     elif args.analysis_level == "group":
-        msg_info("Group analysis not implemented yet.")
+
+        config = read_config_file(args.config, level='group')
+
+        run_group_analysis_from_config(args.bids_dir, args.output_dir, fmriprep_dir, config)
 
     msg_info("The End!")
 

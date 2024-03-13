@@ -845,8 +845,9 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
                                  trials_type=_trials_type, confound_strategy='motion',
                                 contrasts=_contrasts, first_level_options=_first_level_options);
                 pa[t].bids_export(output_dir, _model)
-            except:
+            except Exception as error:
                 msg_error('There was an issue with %s, %s' % (s, t))
+                msg_error(error)
 
         if not _concat_pairs is None:
             msg_warning('using experimental concatenation tool.')

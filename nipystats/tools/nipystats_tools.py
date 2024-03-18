@@ -486,7 +486,7 @@ def get_participantlevel_info(output_layout, task, model, contrast):
     for s in output_layout.get_subjects(**{'model': model, 'desc': contrast, 'task': task}):
         fn = output_layout.get(model=model, desc=contrast,
                                return_type='filename', extension='.nii.gz',
-                               task=task, suffix='effectSize', subject=s)[0]
+                               task=task, suffix='EffectSize', subject=s)[0]
         df.loc[len(df.index)] = ['sub-' + s, contrast, fn]
 
     return df
@@ -847,7 +847,7 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
                 pa[t].bids_export(output_dir, _model)
             except Exception as error:
                 msg_error('There was an issue with %s, %s' % (s, t))
-                msg_error(error)
+                print(error)
 
         if not _concat_pairs is None:
             msg_warning('using experimental concatenation tool.')

@@ -5,7 +5,7 @@ A python package for fMRI statistical analysis.
 This is basically a nilearn wrapper for first- and second-level analyzes. You need fMRIPrep outputs and configuration files to specify the models and the contrasts.
 Probably similar package: [fitlins](https://github.com/poldracklab/fitlins).
 
-## Installation
+# Installation
 
 ```
 git clone https://github.com/ln2t/nipystats.git
@@ -21,6 +21,8 @@ Test install:
 ```
 nipystats -h
 ```
+
+# Configuration files examples
 
 ## First-level
 
@@ -91,3 +93,14 @@ Command-line call:
 ```
 nipystats /path/to/bids/rawdata /path/to/derivatives group --fmriprep_dir /path/to/fMRIPrep/dir --config /path/to/group_level-config.json
 ```
+
+# More explainations, at last!
+
+This package is developped as an alternative to stuff like [fitlins](https://github.com/poldracklab/fitlins), which honestly I love BUT I had a lot of trouble to understand how to make configuration files for my own analyzes.
+The basic principles are:
+- it is a BIDS app, which means in particular that:
+ -- it (should) work BIDS datasets,
+ -- the command-line arguments are somehow standardized: `nipystats rawdata derivatives participants [options]` or `nipystats rawdata derivatives group [options]`,
+- it works only for data preprocessed with [fMRIPrep](https://github.com/nipreps/fmriprep),
+- it heavily relies on the beautiful [nilearn](https://nilearn.github.io/stable/index.html) package,
+- the derivatives ("outputs") contain `html` report that you can easily read and share with your friends (potentially: colleagues).

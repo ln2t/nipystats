@@ -441,6 +441,27 @@ def get_group_confounds(layout, covariates=None):
     if covariates is None:
         covariates = []
 
+    # test if there is a multiplication in the covariates
+
+    multiplicative_col_label = None
+
+    for s in covariates:
+        if '*' in s:
+            covariates.remove(s)
+            covs = s.split('*')
+            if len(covs) == 2:
+                pass
+            else:
+                msg_error('Covariates multiplication is supported only for two columns, ex. group*age')
+            if 'group' in covs:
+                covs.remove('group')
+                multiplicative_col_label = covs[0]
+                if multiplicative_col_label not in list(rawdata_df.columns.values):
+                    msg_error('String %s is not part of the participants.tsv headers, cannot multiply.' % multiplicative_col_label)
+                covariates.append('group')
+            else:
+                msg_error('Covariates multiplication is supported only for group and another column, ex. group*age')
+
     confounds = rawdata_df[['participant_id', *covariates]]
     confounds = confounds.rename(columns={'participant_id': 'subject_label'}).copy()
 
@@ -449,6 +470,10 @@ def get_group_confounds(layout, covariates=None):
         for _group in group_labels:
             confounds[_group] = 0
             confounds.loc[confounds['group'] == _group, _group] = 1
+
+            if multiplicative_col_label is not None:
+                confounds[_group] = confounds[_group] * rawdata_df[multiplicative_col_label]
+
         confounds.drop(columns=['group'], inplace=True)
 
     return confounds

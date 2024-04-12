@@ -2,7 +2,8 @@
 A python package for fMRI statistical analysis.
 
 # TL;DR
-This is basically a nilearn wrapper for first- and second-level analyzes. You need fMRIPrep outputs.
+This is basically a nilearn wrapper for first- and second-level analyzes. You need fMRIPrep outputs and configuration files to specify the models and the contrasts.
+Probably similar package: [https://github.com/poldracklab/fitlins](fitlins).
 
 ## Installation
 

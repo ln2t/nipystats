@@ -94,13 +94,66 @@ Command-line call:
 nipystats /path/to/bids/rawdata /path/to/derivatives group --fmriprep_dir /path/to/fMRIPrep/dir --config /path/to/group_level-config.json
 ```
 
+# Disclaimer
+
+I am not a professional coder, so don't get mad if you can't stomach my "style" :-)
+Also, this software comes "as is", and I do not guarantee that it will work.
+You are most than welcome to open a pull request if you feel, or simply post your questions/issues here.
+
 # More explainations, at last!
 
+## Why and what
+
 This package is developped as an alternative to stuff like [fitlins](https://github.com/poldracklab/fitlins), which honestly I love BUT I had a lot of trouble to understand how to make configuration files for my own analyzes.
+I therefore ended up writing my own stuff and figured I could also share it!
+
 The basic principles are:
 - it is a BIDS app, which means in particular that:
- -- it (should) work BIDS datasets,
- -- the command-line arguments are somehow standardized: `nipystats rawdata derivatives participants [options]` or `nipystats rawdata derivatives group [options]`,
+ A. it (should) work BIDS datasets,
+ B. the command-line arguments are somehow standardized: `nipystats rawdata derivatives participants [options]` or `nipystats rawdata derivatives group [options]`,
 - it works only for data preprocessed with [fMRIPrep](https://github.com/nipreps/fmriprep),
 - it heavily relies on the beautiful [nilearn](https://nilearn.github.io/stable/index.html) package,
 - the derivatives ("outputs") contain `html` report that you can easily read and share with your friends (potentially: colleagues).
+
+## Required dataset
+
+Let's assume you have a BIDS dataset, contained in a folder that for the sake of simplicity we will refer to the `rawdata`. So `rawdata` typically has the following stuff in it:
+```
+rawdata/dataset_description.json
+rawdata/participants.tsv
+rawdata/sub-01
+rawdata/sub-02
+rawdata/sub-03
+...
+```
+The meaning of these things are explained in the [BIDS documentation](https://bids-specification.readthedocs.io/en/stable/). Of course, each subject should have functionnal scans (if not you're probably not on the page you were looking for...).
+
+We also need fMRIPrep outputs, which we suppose are located in `derivatives/fmriprep`. Note that some people tends to have the `derivatives` next to the `sub-01, sub-02, sub-03` folders - I personnaly find it very inconvenient (think when you want to read an `html` report in the derivatives but have a lot of participants: scroll scroll scroll...). But in the end it doesn't matter much. So we have something like:
+
+```
+derivatives/fmriprep/dataset_description.json
+derivatives/fmriprep/sub-01
+derivatives/fmriprep/sub-01.html
+derivatives/fmriprep/sub-02
+derivatives/fmriprep/sub-02.html
+derivatives/fmriprep/sub-03
+derivatives/fmriprep/sub-03.html
+...
+```
+
+Note also that for better control on what you're doing, it is sometimes convenient to tag you fmriprep folder name with the version used, for instance mine looks like `derivatives/fmriprep_23.1.3`. This information is also located in `derivatives/fmriprep/dataset_description.json` but having this explicitly in the folder name avoid some merging/overwriting between versions... that's up to you in the end!
+
+## How typical analyses work in fMRI
+
+(work in progress)
+
+### Participant level (First-level)
+
+### Group level (Second-level)
+
+## The configuration files
+
+Those are `json` files (so basically a text file with a special syntax that makes it easy to read and write both for humans and robots).
+
+
+

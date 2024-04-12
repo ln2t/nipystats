@@ -56,7 +56,7 @@ You need a configuration file,  `participant_level-config.json`, typically
  "concatenation_pairs": null
 }
 ```
-
+Command-line call:
 ```
 nipystats /path/to/bids/rawdata /path/to/derivatives participant --fmriprep_dir /path/to/fMRIPrep/dir --config /path/to/participant_level_config.json
 ```
@@ -86,7 +86,7 @@ You need a configuration file,  `group_level-config.json`, typically
  "task_weights": null
 }
 ```
-
+Command-line call:
 ```
 nipystats /path/to/bids/rawdata /path/to/derivatives group --fmriprep_dir /path/to/fMRIPrep/dir --config /path/to/group_level-config.json
 ```

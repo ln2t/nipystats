@@ -1,0 +1,2 @@
+include nipystats/data/atlases/HarvardOxford-Cortical.xml
+include nipystats/data/atlases/HarvardOxford-cort-prob-1mm.nii.gz

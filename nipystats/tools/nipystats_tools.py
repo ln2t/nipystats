@@ -708,6 +708,26 @@ class GroupAnalysis:
         msg_info('Generating report...')
 
         self.report = self.glm.generate_report(contrasts=self.contrasts, **report_options)
+        from nilearn.reporting import make_glm_report
+        # self.report = make_glm_report(model = self.glm, contrasts=self.contrasts, **report_options)
+
+        from nilearn.reporting import get_clusters_table
+        from nilearn.glm import threshold_stats_img
+
+        self.cluster_table = {}
+        self.thresholds = {}
+        for c in self.contrasts_dict.keys():
+            _map = self.contrast_maps[c]['stat']
+            _, self.thresholds[c] = threshold_stats_img(_map, mask_img = self.ref_mask, alpha = 0.05, height_control = 'fdr')
+            _df = get_clusters_table(_map, stat_threshold=self.thresholds[c], two_sided = True)
+
+            if _df.empty:
+                msg_info('No cluster for contrast %s' % c)
+            else:
+                _df['Location (Harvard-Oxford)'] = _df.apply(lambda row: get_location_HO(row), axis=1)
+
+            self.cluster_table[c] = _df
+
         self.report_options = report_options
 
     def export_to_bids(self):
@@ -723,7 +743,6 @@ class GroupAnalysis:
 
         self.maps_path = {}
 
-        model = self.model
         first_level_model = self.first_level_model
         first_level_contrast = self.first_level_contrast
         task = self.task
@@ -747,6 +766,13 @@ class GroupAnalysis:
                 map_fn = output_layout.build_path(entities, pattern, validate=False)
                 maps[k][kk].to_filename(map_fn)
                 self.maps_path[k][kk] = map_fn
+
+            # save also cluster tables with location in Harvard-Oxford atlas
+            entities = {'task': task, 'suffix': camel_case('cluster table'), 'desc': first_level_contrast,
+                        'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
+                        'extension': '.csv', 'secondLevelContrast': camel_case(k)}
+            cluster_table_fn = output_layout.build_path(entities, pattern, validate=False)
+            self.cluster_table[k].to_csv(cluster_table_fn, sep=',')
 
         entities = {'task': task, 'suffix': 'report', 'desc': first_level_contrast,
                     'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
@@ -937,3 +963,64 @@ def run_group_analysis_from_config(rawdata, output_dir, fmriprep, config):
     ga.plot_stat_map(threshold=3)
     ga.generate_report(**report_options)
     ga.export_to_bids()
+
+def mni_to_voxel(x, y, z, affine):
+    import numpy as np
+    mni = np.array([[x], [y], [z], [1]])
+    voxel = np.linalg.inv(affine).dot(mni)
+    return tuple(np.round(voxel[:3]).astype(int))
+
+def read_xml(xml_file):
+    import xml.etree.ElementTree as ET
+    labels = {}
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    for label in root.findall('.//label'):
+        index = int(label.get('index'))
+        name = label.text.strip()
+        labels[index] = name
+    return labels
+
+def get_location_HO(row):
+    import nibabel as nib
+    x = row['X']
+    y = row['Y']
+    z = row['Z']
+
+    import importlib.resources
+
+    with importlib.resources.path('nipystats.data.atlases', 'HarvardOxford-Cortical.xml') as xml_file:
+        with importlib.resources.path('nipystats.data.atlases', 'HarvardOxford-cort-prob-1mm.nii.gz') as nifti_file:
+
+            # Load NIfTI file
+            nifti = nib.load(nifti_file)
+            data = nifti.get_fdata()
+
+            # Get affine transformation matrix
+            affine = nifti.affine
+
+            # Convert MNI coordinates to voxel coordinates
+            voxel_x, voxel_y, voxel_z = mni_to_voxel(x, y, z, affine)
+
+            # Get volumes at voxel coordinates
+            volumes = data[voxel_x, voxel_y, voxel_z, :].flatten()
+
+            # Read XML file to get label names
+            labels = read_xml(xml_file)
+
+            # Sort volumes by probability
+            sorted_volumes = sorted(enumerate(volumes), key=lambda x: x[1], reverse=True)
+
+            prob_threshold = 0.01
+
+            # Print selected volumes with corresponding label names
+
+            output = []
+
+            for index, prob in sorted_volumes:
+                label_name = labels.get(index, "Unknown")
+                if prob > prob_threshold:
+                    _str = f"{label_name} ({prob} %)"
+                    output.append(_str)
+
+            return ' and '.join(output)

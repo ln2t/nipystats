@@ -138,14 +138,112 @@ derivatives/fmriprep/sub-02
 derivatives/fmriprep/sub-02.html
 derivatives/fmriprep/sub-03
 derivatives/fmriprep/sub-03.html
-...
+(etc)
 ```
 
 Note also that for better control on what you're doing, it is sometimes convenient to tag you fmriprep folder name with the version used, for instance mine looks like `derivatives/fmriprep_23.1.3`. This information is also located in `derivatives/fmriprep/dataset_description.json` but having this explicitly in the folder name avoid some merging/overwriting between versions... that's up to you in the end!
 
 ## How typical analyses work in fMRI
 
+For the sake of simplicity, we assume that there is only one task and one session per participant in the dataset.
+As per BIDS, the events of the task must be described in the `events.tsv` file, which contains the onset and duration of the events (note that there is an optional column named `modulation` - see BIDS documentation for details -  but know that this is also supported in `nipystats`.)
+A typical file would look like:
+```
+onset	duration	trial_type
+30	30              right_finger
+90	30              right_finger
+150	30              right_finger
+210	30              right_finger
+270	30              right_finger
+330	30              right_finger
+```
+This is a simple example where trials are of one type (`right_finger`). The units are in seconds.
+Now, you might have more than one type of trial types; for instance, if you participant also hears some audio instructions, you might have something like:
+```
+onset	duration	trial_type
+30	0               audio_instructions
+30	30		right_finger
+90	30              right_finger
+150	30              right_finger
+210	0               audio_instructions
+210	30              right_finger
+270	30              right_finger
+330	30              right_finger
+330	0               audio_instructions
+```
+(Here the paradigm is just for illustration purposes, don't attempt to find logic in this).
+The first step in your statistical analysis will be to define the *model* for the data.
+We do not include here an even light introduction to the subject, but let's recall that to build the model, you can typically consider *all* trials to define regressors (those are the columns in the design matrix).
+These regressors are typically convolved with the HRF, and the design matrix is completed by added a set of confounds (which are basically other regressors that were not convolved with the HRF - these include motion parameters, typically).
+Heavily relying on nice tools in `nilearn`, `nipystats` take the `events.tsv` file and will automatically build these regressors.
+The "novelty" in `nipystats` is that is allows you to (conveniently) *select* which type of trials you want to include.
+For instance, if for some reason you want one the `right_finger` events to converted in a column for your design matrix, then you can do so by specifying the following in the configuration file:
+
+```
+(...)
+"trials_type": [
+  "right_finger"
+ ]
+(...)
+```
+
+On the other hand, if you want to use also the `audio_instructions` trials, then you could use:
+```
+(...)
+"trials_type": [
+  "right_finger",
+  "audio_instructions"
+ ]
+(...)
+```
+`nipystats` basically filters the `events.tsv` file by the entries in there.
+
+Regarding the confounds, `nipystats` makes some reasonable choice for you, taking one column to model the scanner drift as well as the 6 motion parameters.
+Some of the parameters in the config file allow you to somewhat tune this, see the `first_level_options` field. Those are essentially passed to the `nilearn` first-level GLM functions.
+
+Once the data has been fitted, one must choose contrast vectors. These heavily depend on your research question, and in `nipystats` you can define them using string with operations like + and - (again, this uses `nilearn` machinery).
+So typically, if we want to test for the `right_finger` effect, we choose:
+
+```
+(...)
+"contrasts": [
+  "right_finger"
+ ]
+(...)
+```
+ 
+If, for some fancy reasons, you want to have a contrast that mixes different types of trials, you can do it as follows:
+```
+(...)
+"contrasts": [
+  "right_finger+audio_instructions"
+ ]
+(...)
+```
+Again, this is just an example to understand how to build your own configuration files. Of course the field `contrast` is a list, so you can have several contrasts by separating them with a coma:
+```
+(...)
+"contrasts": [
+  "right_finger+audio_instructions",
+  "right_finger",
+  "audio_instructions-right_finger",
+ ]
+(...)
+```
+
+The full configuration is labeled by a "model name", and this is going to be used to build the outputs.
+This way, you can run several models on your data, and `nipystats` will not mix the outputs together (provided of course you use different model names, duh).
+Moreover, the actual outputs (statistical maps and reports) also contain the model name, so that if you share one file with a friend, the reference to the model will still be there.
+The configuration file is also saved (copied) to the output folder, so if you lose yours, or just share the derivative folder, people will be able to re-run your analysis - a feature that is really relevant in the context of reproducibility.
+Note that the reports, generated using the `nilearn` routines, is a single `html` for all contrasts (they appear in different sections), while the maps (e.g. statistics or effect size maps - the "betas") are saved for each contrast.
+The full name of these maps thus also contain the contrast name, so that we know what we are sharing/looking at.
+Finally, `nipystats` also produces cluster tables (for each contrast). These cluster tables are mostly made by `nilearn`, with the additionaly feature of *locating* the clusters using the Harvard-Oxford atlas.
+(Of course, for this to be valid, you MUST work in MNI space!)
+The location is an extra columns in the cluster table and contains the named of the regions in which your voxel belong, ordered by decreased probability.
+
 (work in progress)
+
+### Fancy feature: fmri concatenation (experimental!)
 
 ### Participant level (First-level)
 

@@ -108,12 +108,12 @@ This package is developed as an alternative to stuff like [fitlins](https://gith
 I therefore ended up writing my own stuff and figured I could also share it!
 
 The basic principles are:
-- it is a BIDS app, which means in particular that:
- A. it (should) work on BIDS datasets,
- B. the command-line arguments are somehow standardized: `nipystats rawdata derivatives participants [options]` or `nipystats rawdata derivatives group [options]`,
+- as any BIDS app, it (should) work on BIDS datasets,
+- as any BIDS app, the command-line arguments are somehow standardized: `nipystats rawdata derivatives participants [options]` or `nipystats rawdata derivatives group [options]`,
 - it works only for data preprocessed with [fMRIPrep](https://github.com/nipreps/fmriprep),
 - it heavily relies on the beautiful [nilearn](https://nilearn.github.io/stable/index.html) package,
 - the derivatives ("outputs") contain `html` reports that you can easily read and share with your friends (potentially: colleagues).
+- it mostly works with configuration files (format: `json`). Examples below.
 
 ## Required dataset
 
@@ -124,7 +124,7 @@ rawdata/participants.tsv
 rawdata/sub-01
 rawdata/sub-02
 rawdata/sub-03
-...
+(etc)
 ```
 The meaning of these things are explained in the [BIDS documentation](https://bids-specification.readthedocs.io/en/stable/). Of course, each subject should have functional scans (if not you're probably not on the page you were looking for...).
 
@@ -178,7 +178,6 @@ These regressors are typically convolved with the HRF, and the design matrix is 
 Heavily relying on nice tools from `nilearn`, `nipystats` take the `events.tsv` file and will automatically build these regressors.
 The "novelty" in `nipystats` is that it allows you to (conveniently) *select* which type of trials you want to include.
 For instance, if for some reason you want *only* the `right_finger` events to converted in a column for your design matrix, then you can do so by specifying the following in the configuration file:
-
 ```
 (...)
 "trials_type": [
@@ -186,7 +185,6 @@ For instance, if for some reason you want *only* the `right_finger` events to co
  ]
 (...)
 ```
-
 On the other hand, if you want to use also the `audio_instructions` trials, then you could use:
 ```
 (...)
@@ -203,7 +201,6 @@ Some of the parameters in the config file allow you to somewhat tune this, see t
 
 Once the data has been fitted, one must choose contrast vectors. These heavily depend on your research questions, and in `nipystats` you can define them using string with operations like + and - (again, this uses `nilearn` machinery).
 So typically, if we want to test for the `right_finger` effect, we choose:
-
 ```
 (...)
 "contrasts": [
@@ -211,7 +208,6 @@ So typically, if we want to test for the `right_finger` effect, we choose:
  ]
 (...)
 ```
- 
 If, for some fancy reasons, you want to have a contrast that mixes different types of trials, you can do it as follows:
 ```
 (...)
@@ -244,13 +240,17 @@ The location is an extra columns in the cluster table and contains the named of 
 
 ### Fancy feature: fmri concatenation (experimental!)
 
-### Participant level (First-level)
+## I don't care about all these options: the automatic mode (WIP)
 
-### Group level (Second-level)
-
-## The configuration files
-
-Those are `json` files (so basically a text file with a special syntax that makes it easy to read and write both for humans and robots).
-
-
-
+In some very simple cases you might just don't care about all the tools in here and just want to do a very basic analysis on your data.
+In this case, no need for a configuration file, just run:
+```
+nipystats /path/to/bids/rawdata /path/to/derivatives participant
+```
+In this case, `nipystats` will:
+- look for fMRIPrep outputs in `/path/to/bids/rawdata/derivatives/fmriprep` (if they are located elsewhere, use `--fmriprep_dir` option to fix this),
+- take all available tasks (make sure all of them has an `events.tsv` file!) and loop over them,
+- for each task, it will take all trial types in the `events.tsv` and build the design matrix with each of these trial types,
+- fit the model with default parameters,
+- make contrast vectors of the "basic" type, i.e. only of the form `(1 0 0 ... 0 0)`, `(0 1 0 ... 0 0)`, ... , `(0 0 0 ... 0 1)`,
+- save the outputs (duh).

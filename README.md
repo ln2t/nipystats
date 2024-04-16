@@ -98,22 +98,22 @@ nipystats /path/to/bids/rawdata /path/to/derivatives group --fmriprep_dir /path/
 
 I am not a professional coder, so don't get mad if you can't stomach my "style" :-)
 Also, this software comes "as is", and I do not guarantee that it will work.
-You are most than welcome to open a pull request if you feel, or simply post your questions/issues here.
+You are more than welcome to open a pull request if you feel, or simply post your questions/issues here.
 
-# More explainations, at last!
+# More explanations, at last!
 
 ## Why and what
 
-This package is developped as an alternative to stuff like [fitlins](https://github.com/poldracklab/fitlins), which honestly I love BUT I had a lot of trouble to understand how to make configuration files for my own analyzes.
+This package is developed as an alternative to stuff like [fitlins](https://github.com/poldracklab/fitlins), which honestly I love BUT I had a lot of trouble to understand how to make configuration files for my own analyses.
 I therefore ended up writing my own stuff and figured I could also share it!
 
 The basic principles are:
 - it is a BIDS app, which means in particular that:
- A. it (should) work BIDS datasets,
+ A. it (should) work on BIDS datasets,
  B. the command-line arguments are somehow standardized: `nipystats rawdata derivatives participants [options]` or `nipystats rawdata derivatives group [options]`,
 - it works only for data preprocessed with [fMRIPrep](https://github.com/nipreps/fmriprep),
 - it heavily relies on the beautiful [nilearn](https://nilearn.github.io/stable/index.html) package,
-- the derivatives ("outputs") contain `html` report that you can easily read and share with your friends (potentially: colleagues).
+- the derivatives ("outputs") contain `html` reports that you can easily read and share with your friends (potentially: colleagues).
 
 ## Required dataset
 
@@ -126,9 +126,9 @@ rawdata/sub-02
 rawdata/sub-03
 ...
 ```
-The meaning of these things are explained in the [BIDS documentation](https://bids-specification.readthedocs.io/en/stable/). Of course, each subject should have functionnal scans (if not you're probably not on the page you were looking for...).
+The meaning of these things are explained in the [BIDS documentation](https://bids-specification.readthedocs.io/en/stable/). Of course, each subject should have functional scans (if not you're probably not on the page you were looking for...).
 
-We also need fMRIPrep outputs, which we suppose are located in `derivatives/fmriprep`. Note that some people tends to have the `derivatives` next to the `sub-01, sub-02, sub-03` folders - I personnaly find it very inconvenient (think when you want to read an `html` report in the derivatives but have a lot of participants: scroll scroll scroll...). But in the end it doesn't matter much. So we have something like:
+We also need fMRIPrep outputs, which we suppose are located in `derivatives/fmriprep`. Note that some people tend to have the `derivatives` next to the `sub-01, sub-02, sub-03` folders - I personnaly find it very inconvenient (think when you want to read an `html` report in the derivatives but have a lot of participants: scroll scroll scroll...). But in the end it doesn't matter much. So we have something like:
 
 ```
 derivatives/fmriprep/dataset_description.json
@@ -146,7 +146,7 @@ Note also that for better control on what you're doing, it is sometimes convenie
 ## How typical analyses work in fMRI
 
 For the sake of simplicity, we assume that there is only one task and one session per participant in the dataset.
-As per BIDS, the events of the task must be described in the `events.tsv` file, which contains the onset and duration of the events (note that there is an optional column named `modulation` - see BIDS documentation for details -  but know that this is also supported in `nipystats`.)
+As per BIDS, the events of the task must be described in the `events.tsv` file, which contains the onset and duration of the events (note that there is an optional column named `modulation` - see BIDS documentation for details -  but know that this is also supported in `nipystats`).
 A typical file would look like:
 ```
 onset	duration	trial_type
@@ -157,7 +157,7 @@ onset	duration	trial_type
 270	30              right_finger
 330	30              right_finger
 ```
-This is a simple example where trials are of one type (`right_finger`). The units are in seconds.
+This is a simple example where trials are of one type (`right_finger`). The units for onset and duration are in seconds.
 Now, you might have more than one type of trial types; for instance, if you participant also hears some audio instructions, you might have something like:
 ```
 onset	duration	trial_type
@@ -173,11 +173,11 @@ onset	duration	trial_type
 ```
 (Here the paradigm is just for illustration purposes, don't attempt to find logic in this).
 The first step in your statistical analysis will be to define the *model* for the data.
-We do not include here an even light introduction to the subject, but let's recall that to build the model, you can typically consider *all* trials to define regressors (those are the columns in the design matrix).
-These regressors are typically convolved with the HRF, and the design matrix is completed by added a set of confounds (which are basically other regressors that were not convolved with the HRF - these include motion parameters, typically).
-Heavily relying on nice tools in `nilearn`, `nipystats` take the `events.tsv` file and will automatically build these regressors.
-The "novelty" in `nipystats` is that is allows you to (conveniently) *select* which type of trials you want to include.
-For instance, if for some reason you want one the `right_finger` events to converted in a column for your design matrix, then you can do so by specifying the following in the configuration file:
+We do not include here an even light introduction to the topic, but let's recall that to build the model, you can typically consider *all* trials to define regressors (those are the columns in the design matrix).
+These regressors are typically convolved with the HRF, and the design matrix is completed by addeing a set of confounds (which are basically other regressors that are not convolved with the HRF - these include motion parameters, for instance).
+Heavily relying on nice tools from `nilearn`, `nipystats` take the `events.tsv` file and will automatically build these regressors.
+The "novelty" in `nipystats` is that it allows you to (conveniently) *select* which type of trials you want to include.
+For instance, if for some reason you want *only* the `right_finger` events to converted in a column for your design matrix, then you can do so by specifying the following in the configuration file:
 
 ```
 (...)
@@ -201,7 +201,7 @@ On the other hand, if you want to use also the `audio_instructions` trials, then
 Regarding the confounds, `nipystats` makes some reasonable choice for you, taking one column to model the scanner drift as well as the 6 motion parameters.
 Some of the parameters in the config file allow you to somewhat tune this, see the `first_level_options` field. Those are essentially passed to the `nilearn` first-level GLM functions.
 
-Once the data has been fitted, one must choose contrast vectors. These heavily depend on your research question, and in `nipystats` you can define them using string with operations like + and - (again, this uses `nilearn` machinery).
+Once the data has been fitted, one must choose contrast vectors. These heavily depend on your research questions, and in `nipystats` you can define them using string with operations like + and - (again, this uses `nilearn` machinery).
 So typically, if we want to test for the `right_finger` effect, we choose:
 
 ```
@@ -230,7 +230,6 @@ Again, this is just an example to understand how to build your own configuration
  ]
 (...)
 ```
-
 The full configuration is labeled by a "model name", and this is going to be used to build the outputs.
 This way, you can run several models on your data, and `nipystats` will not mix the outputs together (provided of course you use different model names, duh).
 Moreover, the actual outputs (statistical maps and reports) also contain the model name, so that if you share one file with a friend, the reference to the model will still be there.

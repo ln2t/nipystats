@@ -583,7 +583,7 @@ class GroupAnalysis:
         msg_info('Setup in progress...')
         # get first-level data paths for selected contrast
         self.output_layout = self.layout.derivatives['nipystats']
-        msg_info("Number of subjects found in the ouputs: %s" % str(len(self.output_layout.get_subjects())))
+        msg_info("Number of subjects found in the outputs: %s" % str(len(self.output_layout.get_subjects())))
         self.bold_mask, self.ref_mask = get_mask_intersect(self.layout, self.tasks)
         self.glm = SecondLevelModel(mask_img=self.bold_mask, smoothing_fwhm=self.smoothing_fwhm,
                                     target_affine=load_img(self.ref_mask).affine)
@@ -704,29 +704,65 @@ class GroupAnalysis:
         self.contrasts_dict = contrasts_dict
 
     def generate_report(self, **report_options):
+        """
+            Wrapper for nilearn.reporting.make_glm_report. Also generate cluster table separately to read-off
+            location of clusters using Harvard-Oxford atlas (only for data in MNI space!).
 
-        msg_info('Generating report...')
+        Args:
+            **report_options: dict, options to pass to report and cluster table generation
 
-        self.report = self.glm.generate_report(contrasts=self.contrasts, **report_options)
+        Returns:
+
+        """
+
+        msg_info('Generating report(s)...')
+
         from nilearn.reporting import make_glm_report
-        # self.report = make_glm_report(model = self.glm, contrasts=self.contrasts, **report_options)
-
         from nilearn.reporting import get_clusters_table
         from nilearn.glm import threshold_stats_img
 
+        if type(report_options['height_control']) is not list:
+            report_options['height_control'] = [report_options['height_control']]
+
+        for i, hc in enumerate(report_options['height_control']):
+            # this is only to have our terminology compatible with nilearn's
+            if hc is None:
+                report_options['height_control'][i] = 'fpr'
+
+        self.report = {}
         self.cluster_table = {}
         self.thresholds = {}
+
+        height_control_to_alpha = {}
+        height_control_to_alpha['fpr'] = 0.001
+        height_control_to_alpha['fdr'] = 0.05
+        height_control_to_alpha['bonferroni'] = 0.05
+
+        for hc in report_options['height_control']:
+            _rep_opts = report_options.copy()
+            _rep_opts['height_control'] = hc
+            if 'alpha' not in _rep_opts:
+                _rep_opts['alpha'] = height_control_to_alpha[hc]
+
+            self.report[hc] = make_glm_report(model=self.glm, contrasts=self.contrasts, **_rep_opts, two_sided=True)
+
         for c in self.contrasts_dict.keys():
-            _map = self.contrast_maps[c]['stat']
-            _, self.thresholds[c] = threshold_stats_img(_map, mask_img = self.ref_mask, alpha = 0.05, height_control = 'fdr')
-            _df = get_clusters_table(_map, stat_threshold=self.thresholds[c], two_sided = True)
+            self.cluster_table[c] = {}
+            self.thresholds[c] = {}
 
-            if _df.empty:
-                msg_info('No cluster for contrast %s' % c)
-            else:
-                _df['Location (Harvard-Oxford)'] = _df.apply(lambda row: get_location_HO(row), axis=1)
+            _map = self.contrast_maps[c]['z_score']
 
-            self.cluster_table[c] = _df
+            for hc in report_options['height_control']:
+                _, self.thresholds[c][hc] = threshold_stats_img(_map, mask_img=self.ref_mask,
+                                                                alpha=height_control_to_alpha[hc],
+                                                                height_control=hc)
+                _df = get_clusters_table(_map, stat_threshold=self.thresholds[c][hc], two_sided=True)
+
+                if _df.empty:
+                    msg_info('No cluster for contrast %s at height threshold %s' % (c, hc))
+                else:
+                    _df['Location (Harvard-Oxford)'] = _df.apply(lambda row: get_location_HO(row), axis=1)
+                self.cluster_table[c][hc] = _df
 
         self.report_options = report_options
 
@@ -767,20 +803,25 @@ class GroupAnalysis:
                 maps[k][kk].to_filename(map_fn)
                 self.maps_path[k][kk] = map_fn
 
-            # save also cluster tables with location in Harvard-Oxford atlas
-            entities = {'task': task, 'suffix': camel_case('cluster table'), 'desc': first_level_contrast,
-                        'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
-                        'extension': '.csv', 'secondLevelContrast': camel_case(k)}
-            cluster_table_fn = output_layout.build_path(entities, pattern, validate=False)
-            self.cluster_table[k].to_csv(cluster_table_fn, sep=',')
+            for hc in self.report_options['height_control']:
+                # save also cluster tables with location in Harvard-Oxford atlas
+                entities = {'task': task, 'suffix': camel_case('cluster table %s' % hc), 'desc': first_level_contrast,
+                            'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
+                            'extension': '.csv', 'secondLevelContrast': camel_case(k)}
+                cluster_table_fn = output_layout.build_path(entities, pattern, validate=False)
+                self.cluster_table[k][hc].to_csv(cluster_table_fn, sep=',')
 
-        entities = {'task': task, 'suffix': 'report', 'desc': first_level_contrast,
-                    'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
-                    'extension': '.html'}
-        rep_fn = output_layout.build_path(entities, pattern, validate=False)
-        msg_info('Saving report to %s' % rep_fn)
-        self.report.save_as_html(rep_fn)
-        self.report_path = rep_fn
+        self.report_path = {}
+
+        for hc in self.report_options['height_control']:
+
+            entities = {'task': task, 'suffix': camel_case('report %s' % hc), 'desc': first_level_contrast,
+                        'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
+                        'extension': '.html'}
+            rep_fn = output_layout.build_path(entities, pattern, validate=False)
+            msg_info('Saving report for %s to %s' % (hc, rep_fn))
+            self.report[hc].save_as_html(rep_fn)
+            self.report_path[hc] = rep_fn
 
     def plot_stat_map(self, threshold=5):
         from nilearn.plotting import plot_stat_map

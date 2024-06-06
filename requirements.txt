@@ -16,7 +16,7 @@ kiwisolver==1.4.5
 lxml==5.1.0
 matplotlib==3.8.3
 nibabel==5.2.0
-nilearn==0.10.3
+nilearn==0.10.4
 num2words==0.5.13
 numpy==1.26.4
 packaging==23.2

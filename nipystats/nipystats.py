@@ -41,9 +41,10 @@ def main():
     # msg_info("Task to analyse: %s" % task)
     # msg_info("Selected space: %s" % space)
 
+    config = read_config_file(args.config, level=args.analysis_level)
+
     if args.analysis_level == "participant":
 
-        config = read_config_file(args.config, level='participant')
         if not config['concatenation_pairs'] is None and not args.task is None:
             msg_error('Task argument cannot be used if concatenation pairs are defined in configuration file.')
             sys.exit(1)
@@ -55,8 +56,6 @@ def main():
 
     # running group level
     elif args.analysis_level == "group":
-
-        config = read_config_file(args.config, level='group')
 
         run_group_analysis_from_config(args.bids_dir, args.output_dir, fmriprep_dir, config)
 

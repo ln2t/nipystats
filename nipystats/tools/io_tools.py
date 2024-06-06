@@ -70,6 +70,44 @@ def get_fmriprep_dir(args):
 
     return fmriprep_dir
 
+def set_default_config(level):
+    """
+        Sets the default values for the pipeline configuration
+    Args:
+        level: str, 'participant' or 'group'
+
+    Returns:
+        dict, default config
+    """
+
+    config = {}
+
+    if level == 'participant':
+
+        config['model'] = ''
+        config['trials_type'] = []
+        config['contrasts'] = []
+        config['tasks'] = []
+        config['first_level_options'] = dict()
+        config['concatenation_pairs'] = None
+
+    if level == 'group':
+
+        config['model'] = ''
+        config['first_level_model'] = ''
+        config['first_level_contrast'] = ''
+        config['concat_tasks'] = None
+        config['tasks'] = []
+        config['covariates'] = []
+        config['contrasts'] = []
+        config['add_constant'] = False
+        config['smoothing_fwhm'] = 0
+        config['report_options'] = dict()
+        config['paired'] = False
+        config['task_weights'] = dict()
+
+    return config
+
 def read_config_file(file, level):
     """
         Read config file
@@ -79,7 +117,8 @@ def read_config_file(file, level):
     Returns:
         dict, with various values/np.arrays for the parameters used in main script
     """
-    config = {}
+
+    config = set_default_config(level=level)
 
     import json
     from .shell_tools import msg_info
@@ -97,7 +136,9 @@ def read_config_file(file, level):
             if key in config_json.keys():
                 config[key] = config_json[key]
 
-        config['first_level_options']['signal_scaling'] = tuple(config['first_level_options']['signal_scaling'])
+        if 'first_level_options' in config_json.keys():
+            if 'signal_scaling' in config['first_level_options'].keys():
+                config['first_level_options']['signal_scaling'] = tuple(config['first_level_options']['signal_scaling'])
 
     if level == 'group':
 
@@ -108,8 +149,5 @@ def read_config_file(file, level):
         for key in keys:
             if key in config_json.keys():
                 config[key] = config_json[key]
-
-        if config['report_options'] is None:
-            config['report_options'] = dict()
 
     return config

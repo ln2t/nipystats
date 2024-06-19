@@ -7,7 +7,7 @@ def read_requirements():
 
 setup(
     name='nipystats',
-    version='2.1.1',
+    version='2.1.2',
     url='https://github.com/ln2t/nipystats',
     author='Antonin Rovai',
     author_email='antonin.rovai@hubruxelles.be',

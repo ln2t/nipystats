@@ -32,6 +32,7 @@ def round_affine(img_list, n=2):
 
     return output
 
+
 def bids_init(rawdata, output, fmriprep):
     from pathlib import Path
     from bids import BIDSLayout
@@ -55,6 +56,7 @@ def bids_init(rawdata, output, fmriprep):
     subjects = layout.get_subjects()
     tasks = layout.get_tasks()
     return layout, subjects, tasks
+
 
 def camel_case(s, lower=False):
     """
@@ -83,14 +85,12 @@ def camel_case(s, lower=False):
 
     return out_s
 
+
 def concat_fmri(imgs):
     from nilearn import image
     clean_imgs = [image.clean_img(_i, standardize=True, detrend=True) for _i in imgs]
 
     return image.concat_imgs(clean_imgs, auto_resample=True)
-
-
-# In[ ]:
 
 
 def make_block_design_matrix(dm1, dm2):
@@ -104,9 +104,6 @@ def make_block_design_matrix(dm1, dm2):
     return dm12
 
 
-# In[ ]:
-
-
 def print_memory_usage():
     # Importing the library
     import psutil
@@ -114,9 +111,6 @@ def print_memory_usage():
     print('RAM memory % used:', psutil.virtual_memory()[2])
     # Getting usage of virtual_memory in GB ( 4th field)
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-
-
-# In[ ]:
 
 
 def save_config(config, output_dir, label):
@@ -129,15 +123,29 @@ def save_config(config, output_dir, label):
     with open(join(_output, 'model-' + label + '_config.json'), 'w') as fp:
         json.dump(config, fp, indent=True)
 
+
 class ParticipantAnalysis:
     """
         A class to perform first-level analysis. Mostly consists of wrappers for nilearn tools.
 
     """
-    def __init__(self, dataset_path=None, subject=None, task_label=None,
-                 trials_type=None, contrasts=None, confound_strategy=None,
-                 derivatives_folder=None, model=None, first_level_options=None,
-                 report_options=None, design_matrix=None, bold_mask=None, layout=None):
+    def __init__(self,
+                 dataset_path=None,
+                 subject=None,
+                 task_label=None,
+                 trials_type=None,
+                 contrasts=None,
+                 confound_strategy=None,
+                 derivatives_folder=None,
+                 model=None,
+                 first_level_options=None,
+                 report_options=None,
+                 design_matrix=None,
+                 bold_mask=None,
+                 layout=None,
+                 output_dir=None,
+                 confounds=None,
+                 model_name=None):
         self.dataset_path = dataset_path
         self.subject = subject
         self.task_label = task_label
@@ -152,6 +160,9 @@ class ParticipantAnalysis:
         self.design_matrix = design_matrix
         self.bold_mask = bold_mask
         self.layout = layout
+        self.output_dir = output_dir
+        self.confounds = confounds
+        self.model_name = model_name
 
     def setup(self, dataset_path=None, task_label=None, subject=None, derivatives_folder=None, first_level_options=None):
         """
@@ -185,9 +196,11 @@ class ParticipantAnalysis:
         else:
             self.first_level_options = first_level_options
 
-        (models, imgs, all_events, all_confounds) =  first_level_from_bids(dataset_path = dataset_path, task_label = task_label,
-                              sub_labels = [subject], derivatives_folder = derivatives_folder,
-                              **first_level_options)
+        (models, imgs, all_events, all_confounds) = first_level_from_bids(dataset_path=dataset_path,
+                                                                          task_label=task_label,
+                                                                          sub_labels=[subject],
+                                                                          derivatives_folder=derivatives_folder,
+                                                                          **first_level_options)
 
         self.model = models[0]
         self.imgs = imgs[0][0]
@@ -268,7 +281,7 @@ class ParticipantAnalysis:
 
     def plot_stat(self, contrast=None, threshold=5):
         """
-            Wrapper for FirstLevelModel.fit()
+            Wrapper for plot_stat_img
 
         """
         from nilearn.plotting import plot_stat_map
@@ -286,14 +299,18 @@ class ParticipantAnalysis:
                 map = self.contrast_maps[c]['stat']
                 plot_stat_map(map, threshold=threshold, title="%s, %s, %s (statistic)" % (c, sub, task))
 
-    def generate_report(self, **report_options):
+    def generate_report(self, report_options):
         """
             Wrapper for FirstLevelModel.generate_report()
 
         """
 
+        if report_options is None:
+            report_options = {}
+
         if not self.contrasts is None:
-            self.report = self.model.generate_report(self.contrasts, **report_options)
+            self.report = self.model.generate_report(self.contrasts,
+                                                     **report_options)
             self.report_options = report_options
         else:
             msg_info('No contrast specified, thus no report to generate.')
@@ -310,7 +327,7 @@ class ParticipantAnalysis:
         self.select_confounds(confound_strategy = confound_strategy)
         self.fit()
         self.compute_contrasts(contrasts)
-        self.generate_report(**report_options)
+        self.generate_report(report_options)
 
     def bids_export(self, output_dir, model):
         """
@@ -478,6 +495,7 @@ def get_group_confounds(layout, covariates=None):
 
     return confounds
 
+
 def get_group_members_lists(layout, design_matrix_and_info):
     """
         Return a dict with keys = group_label and values = list of subject_label belonging to the group.
@@ -516,6 +534,7 @@ def get_participantlevel_info(output_layout, task, model, contrast):
 
     return df
 
+
 def get_mask_intersect(layout, tasks):
     """
         Get all masks from layout.derivatives['fMRIPrep'] corresponding to task and computes intersection, taking care of affine and grid inconsistencies.
@@ -529,6 +548,7 @@ def get_mask_intersect(layout, tasks):
     mask_imgs = harmonize_grid(mask_imgs, ref_mask)
     return intersect_masks(mask_imgs), ref_mask
 
+
 class GroupAnalysis:
     def __init__(self, layout=None, tasks=None, concat_tasks=None, first_level_df=None,
                  first_level_model=None, first_level_contrast=None,
@@ -536,7 +556,8 @@ class GroupAnalysis:
                  design_matrix=None, contrast_maps=None,
                  output_dir=None, covariates=None, glm=None,
                  add_constant=False, paired=False, task_weights=None, smoothing_fwhm=8, report_options=None,
-                 contrasts_dict=None):
+                 contrasts_dict=None,
+                 first_level_effect_maps=None):
         self.layout = layout
         self.first_level_df = first_level_df
         self.first_level_model = camel_case(first_level_model)
@@ -557,6 +578,7 @@ class GroupAnalysis:
         self.smoothing_fwhm = smoothing_fwhm
         self.report_options = report_options
         self.contrasts_dict = contrasts_dict
+        self.first_level_effect_maps = first_level_effect_maps
 
         if concat_tasks is None:
 
@@ -654,6 +676,7 @@ class GroupAnalysis:
         msg_info('Fitting model to data...')
         rounded_ = round_affine(self.design_matrix_and_info['effects_map_path'].values)
         _list = harmonize_grid(rounded_, rounded_[0])
+        self.first_level_effect_maps = _list
         self.glm.fit(_list, design_matrix=self.design_matrix)
 
     def compute_contrasts(self):
@@ -740,9 +763,16 @@ class GroupAnalysis:
 
         for hc in report_options['height_control']:
             _rep_opts = report_options.copy()
-            _rep_opts['height_control'] = hc
-            if 'alpha' not in _rep_opts:
-                _rep_opts['alpha'] = height_control_to_alpha[hc]
+
+            if type(hc) is dict:
+                # in this case the threshold is custom
+                _rep_opts['height_control'] = None
+                _rep_opts['threshold'] = float(hc['Value'])
+                hc = hc['Name']
+            else:
+                _rep_opts['height_control'] = hc
+                if 'alpha' not in _rep_opts:
+                    _rep_opts['alpha'] = height_control_to_alpha[hc]
 
             self.report[hc] = make_glm_report(model=self.glm, contrasts=self.contrasts, **_rep_opts, two_sided=True)
 
@@ -753,9 +783,22 @@ class GroupAnalysis:
             _map = self.contrast_maps[c]['z_score']
 
             for hc in report_options['height_control']:
-                _, self.thresholds[c][hc] = threshold_stats_img(_map, mask_img=self.ref_mask,
-                                                                alpha=height_control_to_alpha[hc],
-                                                                height_control=hc)
+                _thresholding_opts = {}
+                if type(hc) is dict:
+                    _thresholding_opts['height_control'] = None
+                    _thresholding_opts['threshold'] = float(hc['Value'])
+                    hc = hc['Name']
+                else:
+                    _thresholding_opts['height_control'] = hc
+                    _thresholding_opts['alpha'] = height_control_to_alpha[hc]
+
+
+                if hc is not 'permutations':
+                    _, self.thresholds[c][hc] = threshold_stats_img(_map, mask_img=self.ref_mask,
+                                                                **_thresholding_opts)
+                else:
+                    self.thresholds[c][hc] = self.get_non_parametric_threshold(c, _map)
+
                 _df = get_clusters_table(_map, stat_threshold=self.thresholds[c][hc], two_sided=True)
 
                 if _df.empty:
@@ -766,6 +809,20 @@ class GroupAnalysis:
 
         self.report_options = report_options
 
+    def get_non_parametric_threshold(self, contrast, contrast_map, alpha=0.05, n_perm=10000):
+        from nilearn.image import math_img, binarize_img
+        from nilearn.glm.second_level import non_parametric_inference
+        from nilearn.masking import apply_mask
+        import numpy as np
+        neg_log10_pvals_img = non_parametric_inference(self.first_level_effect_maps,
+                                                       design_matrix=self.design_matrix,
+                                                       second_level_contrast=contrast,
+                                                       mask=self.bold_mask,
+                                                       smoothing_fwhm=self.model.smoothing_fwhm,
+                                                       n_perm=n_perm)
+        above_permutation_threshold_img = math_img('img > -np.log(%s)' % alpha, img=neg_log10_pvals_img)
+        above_permutation_threshold_mask = binarize_img(above_permutation_threshold_img)
+        return np.min(apply_mask(contrast_map, above_permutation_threshold_mask))
     def export_to_bids(self):
 
         msg_info('Exporting to BIDS...')
@@ -805,6 +862,10 @@ class GroupAnalysis:
 
             for hc in self.report_options['height_control']:
                 # save also cluster tables with location in Harvard-Oxford atlas
+
+                if type(hc) is dict:
+                    hc = hc['Name']
+
                 entities = {'task': task, 'suffix': camel_case('cluster table %s' % hc), 'desc': first_level_contrast,
                             'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
                             'extension': '.csv', 'secondLevelContrast': camel_case(k)}
@@ -814,6 +875,9 @@ class GroupAnalysis:
         self.report_path = {}
 
         for hc in self.report_options['height_control']:
+
+            if type(hc) is dict:
+                hc = hc['Name']
 
             entities = {'task': task, 'suffix': camel_case('report %s' % hc), 'desc': first_level_contrast,
                         'model': camel_case(first_level_model), 'secondLevelModel': camel_case(self.model),
@@ -833,6 +897,19 @@ class GroupAnalysis:
 
 
 def concat_ParticipantAnalyses(pa1, pa2):
+    """
+        Tool to concatenate two ParticipantAnalysis objects from two different tasks.
+        The fMRI data are concatenated using another tool, concat_fmri.
+        The rest of this function builds the concatenated design matrix from the individual design matrices,
+        assembled in a block-diagonal matrix. Moreover,  the names of the individual regressors are adapted to reflect
+        from which task they where taken from (to avoid duplicates); e.g. if there is a regressor called "motion
+    Args:
+        pa1: ParticipantAnalysis
+        pa2: ParticipantAnalysis
+
+    Returns:
+        ParticipantAnalysis
+    """
 
     from nilearn.masking import intersect_masks
 
@@ -880,7 +957,7 @@ def concat_ParticipantAnalyses(pa1, pa2):
         if _n == 'constant':
             _ll.append(task1)
         else:
-            _ll.append(_n  + '_' + task1)
+            _ll.append(_n + '_' + task1)
     dm1.columns.values[:] = _ll
 
     _ll = []
@@ -901,6 +978,58 @@ def concat_ParticipantAnalyses(pa1, pa2):
     pa12.layout = pa1.layout
 
     return pa12
+
+
+def check_tasks_for_concatenation_option(args, config):
+    """
+        Raise an error if a task argument was explicitly given
+        while concatenation pairs where defined in config file
+    Args:
+        args: namespace
+        config: dict
+
+    Returns:
+        None
+    """
+    import sys
+    if config['concatenation_pairs'] is not None and args.task is not None:
+        msg_error('Task argument cannot be used if concatenation pairs are defined in configuration file.')
+        sys.exit(1)
+
+    return None
+
+def process_subject_and_task(layout, subject, task, config):
+    """
+
+    Args:
+        layout: BIDSLayout
+        subject: string
+        task: string
+        config: dict
+
+    Returns:
+        ParticipantAnalysis object
+    """
+    pa = ParticipantAnalysis()
+
+    try:
+        pa.setup(dataset_path=layout.root,
+                 task_label=task,
+                 subject=subject,
+                 derivatives_folder=layout.derivatives['fMRIPrep'].root,
+                 first_level_options= config['first_level_options'])
+        pa.select_events(trials_type=config['trials_type'])
+        pa.select_confounds(confound_strategy='motion')
+        pa.fit()
+        pa.compute_contrasts(config['contrasts'])
+        pa.generate_report(config['report_options'])
+        pa.bids_export(layout.derivatives['nipystats'].root, config['model'])
+    except Exception as error:
+        msg_error('There was an issue with %s, %s' % (subject, task))
+        print(error)
+
+    return pa
+
 
 def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
 
@@ -972,6 +1101,45 @@ def run_analysis_from_config(rawdata, output_dir, subjects, fmriprep, config):
         del pa  # to save memory
 
 
+def process_concatenation_of_tasks(layout, participant_analysis, config):
+    """
+
+    Args:
+        layout: BIDSLayout
+        participant_analysis: dict of ParticipantAnalysis objects
+        pairs: list of strings
+        contrasts: list of string
+
+    Returns:
+        ParticipantAnalysis object
+    """
+
+    pa = {}
+
+    for (t1, t2) in config['concatenation_pairs']:
+
+        msg_info('Starting concatenation %s + %s' % (t1, t2))
+        print_memory_usage()
+
+        pa1 = participant_analysis[t1]
+        pa2 = participant_analysis[t2]
+
+        pa[(t1, t2)] = concat_ParticipantAnalyses(pa1, pa2)
+        print_memory_usage()
+
+        pa[(t1, t2)].fit()
+
+        if config['contrasts'] is None:
+            pa[(t1, t2)].contrasts = [t1 + '+' + t2, t1 + '-' + t2]
+        else:
+            for c in config['contrasts']:
+                pa[(t1, t2)].contrasts = [c + '_' + t1 + '+' + c + '_' + t2, t1 + '-' + t2, t1 + '+' + t2]
+
+        pa[(t1, t2)].compute_contrasts()
+        pa[(t1, t2)].generate_report()
+        pa[(t1, t2)].bids_export(layout.derivatives['nipystats'].root, config['model'])
+
+    return pa
 
 def run_group_analysis_from_config(rawdata, output_dir, fmriprep, config):
 
@@ -1005,11 +1173,13 @@ def run_group_analysis_from_config(rawdata, output_dir, fmriprep, config):
     ga.generate_report(**report_options)
     ga.export_to_bids()
 
+
 def mni_to_voxel(x, y, z, affine):
     import numpy as np
     mni = np.array([[x], [y], [z], [1]])
     voxel = np.linalg.inv(affine).dot(mni)
     return tuple(np.round(voxel[:3]).astype(int))
+
 
 def read_xml(xml_file):
     import xml.etree.ElementTree as ET
@@ -1021,6 +1191,7 @@ def read_xml(xml_file):
         name = label.text.strip()
         labels[index] = name
     return labels
+
 
 def get_location_HO(row):
     import nibabel as nib

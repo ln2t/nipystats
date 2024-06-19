@@ -41,18 +41,37 @@ def main():
     # msg_info("Task to analyse: %s" % task)
     # msg_info("Selected space: %s" % space)
 
-    config = read_config_file(args.config, level=args.analysis_level)
+    config = read_config_file(args.config, args.analysis_level)
+    layout, all_subjects, all_tasks = bids_init(args.bids_dir, args.output_dir, fmriprep_dir)
 
     if args.analysis_level == "participant":
 
-        if not config['concatenation_pairs'] is None and not args.task is None:
-            msg_error('Task argument cannot be used if concatenation pairs are defined in configuration file.')
-            sys.exit(1)
+        check_tasks_for_concatenation_option(args, config)
+        if args.participant_label:
+            subjects_to_process = args.participant_label
+        else:
+            subjects_to_process = all_subjects
 
-        if args.task:
-            config['tasks'] = args.task
+        if config['tasks'] is None or config['tasks'] == 'All':
+            tasks_to_process = all_tasks
+        else:
+            tasks_to_process = config['tasks']
 
-        run_analysis_from_config(args.bids_dir, args.output_dir, args.participant_label, fmriprep_dir, config)
+        save_config(config, args.output_dir, config['model'])
+
+        for s in subjects_to_process:
+            msg_info("Running for participant %s" % s)
+
+            participant_analysis = {}
+            for t in tasks_to_process:
+                msg_info('Processing %s, %s' % (s, t))
+                participant_analysis[t] = process_subject_and_task(layout, s, t, config)
+
+            if config['concatenation_pairs'] is not None:
+                msg_warning('Using experimental concatenation tool.')
+                process_concatenation_of_tasks(layout, participant_analysis, config)
+
+#        run_analysis_from_config(args.bids_dir, args.output_dir, args.participant_label, fmriprep_dir, config)
 
     # running group level
     elif args.analysis_level == "group":

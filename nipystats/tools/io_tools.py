@@ -2,6 +2,7 @@
 Various input/output tools
 """
 
+
 def arguments_manager(version):
     """
         Wrapper to define and read arguments for main function call
@@ -45,6 +46,7 @@ def arguments_manager(version):
                              'If omitted, default values will be used.')
     return parser.parse_args()
 
+
 def get_fmriprep_dir(args):
     """
         Get and check existence of fmriprep dir from options or default
@@ -69,6 +71,7 @@ def get_fmriprep_dir(args):
         sys.exit(1)
 
     return fmriprep_dir
+
 
 def set_default_config(level):
     """
@@ -108,7 +111,8 @@ def set_default_config(level):
 
     return config
 
-def read_config_file(file, level):
+
+def read_config_file(file, analysis_level):
     """
         Read config file
 
@@ -117,30 +121,32 @@ def read_config_file(file, level):
     Returns:
         dict, with various values/np.arrays for the parameters used in main script
     """
-
-    config = set_default_config(level=level)
+    from .shell_tools import msg_info
+    config = {}
 
     import json
-    from .shell_tools import msg_info
 
     msg_info('Reading parameters from user-provided configuration file %s' % file)
+
     with open(file, 'r') as f:
         config_json = json.load(f)
 
-    if level == 'participant':
+    if analysis_level == 'participant':
 
-        keys = ['model', 'trials_type', 'contrasts',
-                'tasks', 'first_level_options', 'concatenation_pairs']
+        keys = ['model', 'participant_label', 'trials_type', 'contrasts',
+                'tasks', 'first_level_options', 'concatenation_pairs', 'report_options']
 
         for key in keys:
             if key in config_json.keys():
                 config[key] = config_json[key]
+            else:
+                config[key] = None
 
         if 'first_level_options' in config_json.keys():
             if 'signal_scaling' in config['first_level_options'].keys():
                 config['first_level_options']['signal_scaling'] = tuple(config['first_level_options']['signal_scaling'])
 
-    if level == 'group':
+    if analysis_level == 'group':
 
         keys = ['model', 'first_level_model', 'first_level_contrast',
                 'concat_tasks', 'tasks', 'covariates', 'contrasts',
@@ -149,5 +155,7 @@ def read_config_file(file, level):
         for key in keys:
             if key in config_json.keys():
                 config[key] = config_json[key]
+            else:
+                config[key] = None
 
     return config

@@ -174,7 +174,7 @@ onset	duration	trial_type
 (Here the paradigm is just for illustration purposes, don't attempt to find logic in this).
 The first step in your statistical analysis will be to define the *model* for the data.
 We do not include here an even light introduction to the topic, but let's recall that to build the model, you can typically consider *all* trials to define regressors (those are the columns in the design matrix).
-These regressors are typically convolved with the HRF, and the design matrix is completed by addeing a set of confounds (which are basically other regressors that are not convolved with the HRF - these include motion parameters, for instance).
+These regressors are typically convolved with the HRF, and the design matrix is completed by adding a set of confounds (which are basically other regressors that are not convolved with the HRF - these include motion parameters, for instance).
 Heavily relying on nice tools from `nilearn`, `nipystats` take the `events.tsv` file and will automatically build these regressors.
 The "novelty" in `nipystats` is that it allows you to (conveniently) *select* which type of trials you want to include.
 For instance, if for some reason you want *only* the `right_finger` events to converted in a column for your design matrix, then you can do so by specifying the following in the configuration file:

@@ -517,7 +517,7 @@ def get_group_members_lists(layout, design_matrix_and_info):
 
 def get_participantlevel_info(output_layout, task, model, contrast):
     """
-        Make a dataframe with participant-level informations
+        Make a dataframe with participant-level information from the outputs of nipystats at first level.
 
     """
     import pandas as pd
@@ -537,7 +537,8 @@ def get_participantlevel_info(output_layout, task, model, contrast):
 
 def get_mask_intersect(layout, tasks):
     """
-        Get all masks from layout.derivatives['fMRIPrep'] corresponding to task and computes intersection, taking care of affine and grid inconsistencies.
+        Get all masks from layout.derivatives['fMRIPrep'] corresponding to task and computes intersection,
+        taking care of affine and grid inconsistencies.
 
     """
     from nilearn.masking import intersect_masks
@@ -581,7 +582,6 @@ class GroupAnalysis:
         self.first_level_effect_maps = first_level_effect_maps
 
         if concat_tasks is None:
-
             self.n_tasks = len(tasks)
 
             if self.n_tasks == 1:
@@ -598,7 +598,9 @@ class GroupAnalysis:
         self.task_weights = task_weights
 
     def setup(self):
-
+        """
+            Basic setup steps to get things ready for business.
+        """
         from nilearn.glm.second_level import SecondLevelModel
         from nilearn.image import load_img
 
@@ -611,7 +613,10 @@ class GroupAnalysis:
                                     target_affine=load_img(self.ref_mask).affine)
 
     def make_design_matrix(self):
-
+        """
+            This is one of the most important function of the package, as it handles quite various cases for
+            group-level designs.
+        """
         msg_info('Making design matrix...')
 
         import pandas as pd
@@ -620,6 +625,10 @@ class GroupAnalysis:
         tasks = self.tasks
 
         if self.n_tasks == 1:
+            # todo: merge what's here and what's just below into one single function
+            # What follows take information from the first-level analysis together with the participants.tsv file
+            # to build a design matrix, taking into account that maybe not all subjects has an output at first level
+            # as well as group-level confounds (covariates)
             dm1 = get_participantlevel_info(self.output_layout, self.task, self.first_level_model,
                                             self.first_level_contrast).sort_values('subject_label')
             dm2 = get_group_confounds(layout=self.layout, covariates=self.covariates).sort_values('subject_label')
@@ -629,6 +638,9 @@ class GroupAnalysis:
             dm.drop(columns=['map_name'], inplace=True)
         else:
             for t in self.tasks:
+                # This is essentially the same as above, except that it creates at 'subject_task_label' into the
+                # design matrix. This is to keep track of the various tasks that will be involved in the model
+                # (without customization of the name, there would be ambiguities in the labels).
                 dm1 = get_participantlevel_info(self.output_layout, t, self.first_level_model,
                                                 self.first_level_contrast).sort_values('subject_label')
                 dm2 = get_group_confounds(layout=self.layout, covariates=self.covariates).sort_values('subject_label')
@@ -641,13 +653,17 @@ class GroupAnalysis:
             dm.rename(columns={0: 'subject_label'}, inplace=True)
 
             if self.paired:
-
+                # This handles the cases of paired analysis
                 for t in tasks:
-                    if not t in self.task_weights.keys():
+                    if t not in self.task_weights.keys():
                         msg_info('Error, task %s not in the task weights.' % t)
 
                 subjects = set(dm['subject_label'].values)
 
+                # For paired designs, there must be one column per subject and per condition. Here we create such
+                # cols, naming then 'sub-<s>_task-<task>'.
+                # Moreover, the entries in the design matrix are set to what's given in task_weights
+                # (typically, to compare two tasks, weights are something like [1, -1])
                 for s in subjects:
                     s = camel_case(s)
                     dm[s] = 0
@@ -655,6 +671,7 @@ class GroupAnalysis:
                         dm.loc[dm['subject_task_label'] == s + '_task-' + t, s] = self.task_weights[t]
 
             else:
+                # Creates an indicator function for the tasks.
                 for t in tasks:
                     dm[t] = 0
                     dm.loc[dm['task'] == t, t] = 1
@@ -683,9 +700,14 @@ class GroupAnalysis:
 
         msg_info('Computing contrasts...')
 
+        # The contrasts_dict is useful to distinguish between the actual contrast string and the human-friendly name we
+        # want to give him. The contrast string is typically complicated in paired designs (otherwise it is okay).
+        # The nice name will be used for output names.
         contrasts_dict = {}
 
         if self.paired:
+            # For paired designs, the contrast strings are quite involved as they typically uses all cols
+            # with 'sub-<s>_*'. Here we generate automatically such contrasts.
 
             group_members = get_group_members_lists(self.layout, self.design_matrix_and_info)
 
@@ -718,6 +740,7 @@ class GroupAnalysis:
             for c in self.contrasts:
                 contrasts_dict[c] = c
 
+        # ... and finally compute the actual contrasts
         self.contrast_maps = {}
         for k in contrasts_dict.keys():
             self.contrast_maps[k] = self.glm.compute_contrast(second_level_contrast=contrasts_dict[k],
@@ -759,6 +782,7 @@ class GroupAnalysis:
         height_control_to_alpha = {}
         height_control_to_alpha['fpr'] = 0.001
         height_control_to_alpha['fdr'] = 0.05
+        height_control_to_alpha['permutations'] = 0.05
         height_control_to_alpha['bonferroni'] = 0.05
 
         for hc in report_options['height_control']:
@@ -770,11 +794,17 @@ class GroupAnalysis:
                 _rep_opts['threshold'] = float(hc['Value'])
                 hc = hc['Name']
             else:
-                _rep_opts['height_control'] = hc
-                if 'alpha' not in _rep_opts:
-                    _rep_opts['alpha'] = height_control_to_alpha[hc]
+                if not hc == 'permutations':
 
-            self.report[hc] = make_glm_report(model=self.glm, contrasts=self.contrasts, **_rep_opts, two_sided=True)
+                    _rep_opts['height_control'] = hc
+                    if 'alpha' not in _rep_opts:
+                        _rep_opts['alpha'] = height_control_to_alpha[hc]
+
+            if not hc == 'permutations':
+                self.report[hc] = make_glm_report(model=self.glm, contrasts=self.contrasts, **_rep_opts, two_sided=True)
+            else:
+                msg_warning('No reports can be generated with permutation testing, as threshold depends on contrast. '
+                            '(Currently, the reports uses uniformly the threshold through all contrasts in nilearn)')
 
         for c in self.contrasts_dict.keys():
             self.cluster_table[c] = {}
@@ -783,6 +813,7 @@ class GroupAnalysis:
             _map = self.contrast_maps[c]['z_score']
 
             for hc in report_options['height_control']:
+
                 _thresholding_opts = {}
                 if type(hc) is dict:
                     _thresholding_opts['height_control'] = None
@@ -792,12 +823,13 @@ class GroupAnalysis:
                     _thresholding_opts['height_control'] = hc
                     _thresholding_opts['alpha'] = height_control_to_alpha[hc]
 
-
-                if hc is not 'permutations':
+                if not hc == 'permutations':
                     _, self.thresholds[c][hc] = threshold_stats_img(_map, mask_img=self.ref_mask,
                                                                 **_thresholding_opts)
-                else:
-                    self.thresholds[c][hc] = self.get_non_parametric_threshold(c, _map)
+                if hc == 'permutations':
+                    self.thresholds[c][hc] = self.get_non_parametric_threshold(c,
+                                                                               _map,
+                                                                               alpha=_thresholding_opts['alpha'])
 
                 _df = get_clusters_table(_map, stat_threshold=self.thresholds[c][hc], two_sided=True)
 
@@ -823,6 +855,7 @@ class GroupAnalysis:
         above_permutation_threshold_img = math_img('img > -np.log(%s)' % alpha, img=neg_log10_pvals_img)
         above_permutation_threshold_mask = binarize_img(above_permutation_threshold_img)
         return np.min(apply_mask(contrast_map, above_permutation_threshold_mask))
+
     def export_to_bids(self):
 
         msg_info('Exporting to BIDS...')

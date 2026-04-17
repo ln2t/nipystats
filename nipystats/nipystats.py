@@ -71,12 +71,10 @@ def main():
                 msg_warning('Using experimental concatenation tool.')
                 process_concatenation_of_tasks(layout, participant_analysis, config)
 
-#        run_analysis_from_config(args.bids_dir, args.output_dir, args.participant_label, fmriprep_dir, config)
-
     # running group level
     elif args.analysis_level == "group":
 
-        run_group_analysis_from_config(args.bids_dir, args.output_dir, fmriprep_dir, config)
+        run_group_analysis_from_config(layout, config)
 
     msg_info("The End!")
 

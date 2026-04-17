@@ -3,7 +3,7 @@ FROM python:3.11
 WORKDIR /code
 
 COPY requirements.txt nipystats/
-RUN pip install --trusted-host files.pythonhosted.org --trusted-host pypi.org --trusted-host pypi.python.org -r nipystats/requirements.txt
+RUN pip install --default-timeout=1000 --trusted-host files.pythonhosted.org --trusted-host pypi.org --trusted-host pypi.python.org -r nipystats/requirements.txt
 COPY nipystats nipystats/nipystats
 COPY setup.py nipystats/
 

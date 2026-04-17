@@ -150,12 +150,20 @@ def read_config_file(file, analysis_level):
 
         keys = ['model', 'first_level_model', 'first_level_contrast',
                 'concat_tasks', 'tasks', 'covariates', 'contrasts',
-                'add_constant', 'smoothing_fwhm', 'report_options', 'paired', 'task_weights']
+                'add_constant', 'smoothing_fwhm', 'report_options', 'paired',
+                'task_weights', 'permutation_columns', 'custom_z_threshold']
 
         for key in keys:
             if key in config_json.keys():
                 config[key] = config_json[key]
             else:
-                config[key] = None
+                if key == 'paired':
+                    config[key] = False
+                if key == 'add_constant':
+                    config[key] = False
+                if key == 'covariates':
+                    config[key] = []
+                else:
+                    config[key] = None
 
     return config

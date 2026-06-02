@@ -6,7 +6,7 @@ click==8.1.7
 contourpy==1.2.0
 cycler==0.12.1
 docopt==0.6.2
-fonttools==4.49.0
+fonttools==4.60.2
 formulaic==0.5.2
 greenlet==3.0.3
 idna==3.15
